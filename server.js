@@ -51,7 +51,7 @@ app.use(express.json({ limit: '50mb' }));
 db.serialize(() => {
   db.run(`CREATE TABLE IF NOT EXISTS lots (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    drena TEXT NOT NULL,
+    drenaet TEXT NOT NULL,
     iepp TEXT NOT NULL,
     secteur_pedagogique TEXT NOT NULL,
     nom_ecole TEXT NOT NULL,
@@ -78,7 +78,7 @@ db.serialize(() => {
 
 function validatePayload(data) {
   const errors = [];
-  const requiredFields = ['drena', 'iepp', 'secteur_pedagogique', 'nom_ecole',
+  const requiredFields = ['drenaet', 'iepp', 'secteur_pedagogique', 'nom_ecole',
     'nom_directeur', 'prenoms_directeur', 'contact1', 'eleves'];
   requiredFields.forEach(field => {
     if (!data[field] || String(data[field]).trim() === '') {
@@ -222,17 +222,17 @@ app.post('/api/eleves', apiLimiter, (req, res) => {
   }
 
   const {
-    drena, iepp, secteur_pedagogique, nom_ecole,
+    drenaet, iepp, secteur_pedagogique, nom_ecole,
     nom_directeur, prenoms_directeur, contact1, contact2, email, eleves
   } = req.body;
 
   const stmt = db.prepare(`INSERT INTO lots
-    (drena, iepp, secteur_pedagogique, nom_ecole, nom_directeur, prenoms_directeur,
+    (drenaet, iepp, secteur_pedagogique, nom_ecole, nom_directeur, prenoms_directeur,
      contact1, contact2, email, eleves)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
 
   stmt.run([
-    drena.trim(),
+    drenaet.trim(),
     iepp.trim(),
     secteur_pedagogique.trim(),
     nom_ecole.trim(),
