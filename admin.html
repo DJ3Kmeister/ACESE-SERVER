@@ -17,6 +17,8 @@
     .loading { display: inline-block; width: 20px; height: 20px; border: 3px solid rgba(255,255,255,.3); border-radius: 50%; border-top-color: #fff; animation: spin 1s ease-in-out infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
     body { font-family: 'Segoe UI', system-ui, sans-serif; }
+    .secteur-panel { max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; }
+    .secteur-panel.open { max-height: 2000px; }
   </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
@@ -42,7 +44,8 @@
             <p class="text-sm text-green-200">IEPP GRABO • DRENAET San-Pédro • Côte d'Ivoire</p>
           </div>
         </div>
-        <div class="flex items-center gap-3">
+        <div class="flex items-center gap-3 flex-wrap">
+          <span class="text-[8px] text-white/30 font-light leading-tight text-right">WebApp powered by<br>DJ3K S3PH1R0TH</span>
           <span id="keepalive-status" class="text-[10px] bg-green-400/30 text-green-100 px-2 py-1 rounded-full">⏰ Keep-alive actif</span>
           <button id="btn-refresh" class="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-sm transition-colors cursor-pointer">
             🔄 Actualiser
@@ -80,6 +83,33 @@
     </div>
   </div>
 
+  <!-- Secteurs & Écoles Management -->
+  <div class="max-w-7xl mx-auto px-4 mt-6">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+      <div class="bg-gradient-to-r from-purple-600 to-purple-500 px-5 py-3 flex items-center justify-between cursor-pointer" id="secteurs-header">
+        <div class="flex items-center gap-2">
+          <span>🏫</span>
+          <h3 class="font-semibold text-white text-sm">Gestion des Secteurs & Écoles</h3>
+          <span class="ml-2 bg-white/20 text-white text-xs px-2 py-0.5 rounded-full" id="secteurs-count">0 secteurs</span>
+        </div>
+        <span id="secteurs-toggle" class="text-white/80 hover:text-white text-lg">▼</span>
+      </div>
+      <div id="secteurs-panel" class="secteur-panel">
+        <div class="p-5 space-y-4">
+          <!-- Add secteur -->
+          <div class="flex gap-2">
+            <input type="text" id="new-secteur-input" placeholder="Nom du nouveau secteur..." maxlength="100" class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-purple-500">
+            <button id="btn-add-secteur" class="px-4 py-2 bg-purple-500 text-white rounded-lg text-sm font-medium hover:bg-purple-400 transition-colors cursor-pointer">+ Ajouter secteur</button>
+          </div>
+          <!-- Secteurs list -->
+          <div id="secteurs-list-container" class="space-y-3">
+            <p class="text-gray-400 text-sm text-center py-4">Chargement...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Filters -->
   <div class="max-w-7xl mx-auto px-4 mt-6">
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
@@ -90,21 +120,21 @@
       <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
         <div>
           <label class="block text-xs text-gray-500 mb-1">Secteur</label>
-          <select id="filter-secteur" class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:border-green-500 focus:ring-2 focus:ring-green-200">
+          <select id="filter-secteur" class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:border-green-500">
             <option value="">Tous les secteurs</option>
           </select>
         </div>
         <div>
           <label class="block text-xs text-gray-500 mb-1">École</label>
-          <input type="text" id="filter-ecole" placeholder="Rechercher..." class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:border-green-500 focus:ring-2 focus:ring-green-200">
+          <input type="text" id="filter-ecole" placeholder="Rechercher..." maxlength="200" class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:border-green-500">
         </div>
         <div>
           <label class="block text-xs text-gray-500 mb-1">Date début</label>
-          <input type="date" id="filter-dateDebut" class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:border-green-500 focus:ring-2 focus:ring-green-200">
+          <input type="date" id="filter-dateDebut" class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:border-green-500">
         </div>
         <div>
           <label class="block text-xs text-gray-500 mb-1">Date fin</label>
-          <input type="date" id="filter-dateFin" class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:border-green-500 focus:ring-2 focus:ring-green-200">
+          <input type="date" id="filter-dateFin" class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:border-green-500">
         </div>
       </div>
       <div class="mt-3 flex gap-2">
@@ -118,7 +148,6 @@
   <!-- Stats by sector -->
   <div class="max-w-7xl mx-auto px-4 mt-6">
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <!-- By sector -->
       <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         <div class="bg-gradient-to-r from-green-600 to-green-500 px-5 py-3 flex items-center gap-2">
           <span>📊</span>
@@ -128,8 +157,6 @@
           <p class="text-gray-400 text-sm text-center py-4">Chargement...</p>
         </div>
       </div>
-
-      <!-- By class -->
       <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         <div class="bg-gradient-to-r from-blue-600 to-blue-500 px-5 py-3 flex items-center gap-2">
           <span>📚</span>
@@ -186,10 +213,20 @@
   </div>
 
   <script>
+    // ============ XSS PROTECTION ============
+    function esc(str) {
+      if (!str) return '';
+      var div = document.createElement('div');
+      div.appendChild(document.createTextNode(String(str)));
+      return div.innerHTML;
+    }
+
     // ============ VARIABLES ============
     var allLots = [];
     var allStats = {};
+    var allSecteurs = [];
     var filterTimeout = null;
+    var secteursPanelOpen = false;
 
     // ============ TOAST ============
     function showToast(type, text) {
@@ -202,13 +239,174 @@
       var icons = { success: '✅', error: '❌', info: 'ℹ️' };
       var toast = document.createElement('div');
       toast.className = 'flex items-center gap-2 px-4 py-3 rounded-lg border shadow-lg min-w-[280px] max-w-sm animate-slide-down ' + colors[type];
-      toast.innerHTML = '<span>' + icons[type] + '</span><span class="text-sm font-medium">' + text + '</span>';
+      toast.innerHTML = '<span>' + icons[type] + '</span><span class="text-sm font-medium">' + esc(text) + '</span>';
       container.appendChild(toast);
       setTimeout(function() {
         toast.style.opacity = '0';
         toast.style.transition = 'opacity 0.3s';
         setTimeout(function() { toast.remove(); }, 300);
       }, 4000);
+    }
+
+    // ============ SECTEURS MANAGEMENT ============
+    function toggleSecteursPanel() {
+      secteursPanelOpen = !secteursPanelOpen;
+      var panel = document.getElementById('secteurs-panel');
+      var toggle = document.getElementById('secteurs-toggle');
+      if (secteursPanelOpen) {
+        panel.classList.add('open');
+        toggle.textContent = '▲';
+      } else {
+        panel.classList.remove('open');
+        toggle.textContent = '▼';
+      }
+    }
+
+    function loadSecteurs() {
+      fetch('/api/secteurs')
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+          allSecteurs = data;
+          renderSecteurs();
+        })
+        .catch(function(err) {
+          console.error('Erreur secteurs:', err);
+        });
+    }
+
+    function renderSecteurs() {
+      var container = document.getElementById('secteurs-list-container');
+      document.getElementById('secteurs-count').textContent = allSecteurs.length + ' secteur(s)';
+
+      if (allSecteurs.length === 0) {
+        container.innerHTML = '<p class="text-gray-400 text-sm text-center py-4">Aucun secteur configuré</p>';
+        return;
+      }
+
+      var html = '';
+      for (var i = 0; i < allSecteurs.length; i++) {
+        var s = allSecteurs[i];
+        var ecoles = s.ecoles || [];
+        html += '<div class="border border-gray-200 rounded-lg overflow-hidden">' +
+          '<div class="bg-purple-50 px-4 py-2 flex items-center justify-between">' +
+            '<span class="font-semibold text-purple-800 text-sm">📍 ' + esc(s.nom) + '</span>' +
+            '<div class="flex items-center gap-2">' +
+              '<span class="text-xs text-purple-500">' + ecoles.length + ' école(s)</span>' +
+              '<button data-action="delete-secteur" data-id="' + s.id + '" class="secteur-action-btn text-red-400 hover:text-red-600 text-sm cursor-pointer px-2 py-1">🗑</button>' +
+            '</div>' +
+          '</div>' +
+          '<div class="p-3 space-y-2">';
+
+        if (ecoles.length > 0) {
+          for (var j = 0; j < ecoles.length; j++) {
+            html += '<div class="flex items-center justify-between bg-gray-50 px-3 py-1.5 rounded-lg">' +
+              '<span class="text-sm text-gray-700">🏫 ' + esc(ecoles[j].nom) + '</span>' +
+              '<button data-action="delete-ecole" data-id="' + ecoles[j].id + '" class="secteur-action-btn text-red-400 hover:text-red-600 text-xs cursor-pointer px-2 py-1">✕</button>' +
+            '</div>';
+          }
+        } else {
+          html += '<p class="text-xs text-gray-400 text-center py-1">Aucune école — ajoutez-en ci-dessous</p>';
+        }
+
+        html += '<div class="flex gap-2 mt-2">' +
+          '<input type="text" data-secteur-id="' + s.id + '" class="new-ecole-input flex-1 px-2 py-1 border border-gray-200 rounded text-xs" placeholder="Nom de l\'école..." maxlength="200">' +
+          '<button data-action="add-ecole" data-id="' + s.id + '" class="secteur-action-btn px-3 py-1 bg-green-500 text-white rounded text-xs cursor-pointer hover:bg-green-400">+ École</button>' +
+        '</div>';
+
+        html += '</div></div>';
+      }
+      container.innerHTML = html;
+    }
+
+    function addSecteur() {
+      var input = document.getElementById('new-secteur-input');
+      var nom = input.value.trim();
+      if (nom.length < 2) {
+        showToast('error', 'Nom trop court (min 2 caractères)');
+        return;
+      }
+      fetch('/api/secteurs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nom: nom })
+      })
+      .then(function(res) { return res.json(); })
+      .then(function(data) {
+        if (data.success) {
+          showToast('success', 'Secteur "' + nom + '" ajouté');
+          input.value = '';
+          loadSecteurs();
+        } else {
+          showToast('error', data.error || 'Erreur');
+        }
+      })
+      .catch(function() { showToast('error', 'Erreur réseau'); });
+    }
+
+    function deleteSecteur(id) {
+      if (!confirm('Supprimer ce secteur et toutes ses écoles ?')) return;
+      fetch('/api/secteurs/' + id, { method: 'DELETE' })
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+          if (data.success) {
+            showToast('success', 'Secteur supprimé');
+            loadSecteurs();
+          } else {
+            showToast('error', data.error || 'Erreur');
+          }
+        })
+        .catch(function() { showToast('error', 'Erreur réseau'); });
+    }
+
+    function addEcole(secteurId) {
+      var input = document.querySelector('input.new-ecole-input[data-secteur-id="' + secteurId + '"]');
+      if (!input) return;
+      var nom = input.value.trim();
+      if (nom.length < 2) {
+        showToast('error', 'Nom trop court');
+        return;
+      }
+      fetch('/api/secteurs/' + secteurId + '/ecoles', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nom: nom })
+      })
+      .then(function(res) { return res.json(); })
+      .then(function(data) {
+        if (data.success) {
+          showToast('success', 'École "' + nom + '" ajoutée');
+          loadSecteurs();
+        } else {
+          showToast('error', data.error || 'Erreur');
+        }
+      })
+      .catch(function() { showToast('error', 'Erreur réseau'); });
+    }
+
+    function deleteEcole(ecoleId) {
+      if (!confirm('Supprimer cette école ?')) return;
+      // Find secteur_id from allSecteurs
+      var secteurId = null;
+      for (var i = 0; i < allSecteurs.length; i++) {
+        var ecoles = allSecteurs[i].ecoles || [];
+        for (var j = 0; j < ecoles.length; j++) {
+          if (ecoles[j].id === ecoleId) { secteurId = allSecteurs[i].id; break; }
+        }
+        if (secteurId) break;
+      }
+      if (!secteurId) return;
+
+      fetch('/api/secteurs/' + secteurId + '/ecoles/' + ecoleId, { method: 'DELETE' })
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+          if (data.success) {
+            showToast('success', 'École supprimée');
+            loadSecteurs();
+          } else {
+            showToast('error', data.error || 'Erreur');
+          }
+        })
+        .catch(function() { showToast('error', 'Erreur réseau'); });
     }
 
     // ============ FETCH DATA ============
@@ -261,7 +459,6 @@
       document.getElementById('stat-secteurs').textContent = g.total_secteurs || 0;
       document.getElementById('stat-lots').textContent = g.total_lots || 0;
 
-      // Sector table
       var secteurTable = document.getElementById('stats-secteur-table');
       var secteurs = allStats.parSecteur || [];
       if (secteurs.length === 0) {
@@ -273,7 +470,7 @@
         for (var i = 0; i < secteurs.length; i++) {
           var s = secteurs[i];
           html += '<tr class="border-b border-gray-50 hover:bg-gray-50">' +
-            '<td class="py-2 font-medium">' + s.secteur_pedagogique + '</td>' +
+            '<td class="py-2 font-medium">' + esc(s.secteur_pedagogique) + '</td>' +
             '<td class="py-2 text-center">' + s.nb_lots + '</td>' +
             '<td class="py-2 text-center font-semibold text-green-600">' + s.total_eleves + '</td></tr>';
         }
@@ -281,7 +478,6 @@
         secteurTable.innerHTML = html;
       }
 
-      // Class table
       var classeTable = document.getElementById('stats-classe-table');
       var classes = allStats.parClasse || [];
       if (classes.length === 0) {
@@ -298,7 +494,7 @@
           var c = classes[j];
           var pct = maxVal > 0 ? (c.effectif / maxVal * 100) : 0;
           html2 += '<tr class="border-b border-gray-50 hover:bg-gray-50">' +
-            '<td class="py-2 font-medium">' + c.classe + '</td>' +
+            '<td class="py-2 font-medium">' + esc(c.classe) + '</td>' +
             '<td class="py-2 text-center font-semibold text-blue-600">' + c.effectif + '</td>' +
             '<td class="py-2"><div class="w-full bg-gray-100 rounded-full h-3">' +
             '<div class="bg-blue-500 h-3 rounded-full" style="width:' + pct + '%"></div></div></td></tr>';
@@ -320,7 +516,7 @@
       var options = '<option value="">Tous les secteurs</option>';
       for (var j = 0; j < secteurs.length; j++) {
         var sel = secteurs[j] === current ? ' selected' : '';
-        options += '<option value="' + secteurs[j] + '"' + sel + '>' + secteurs[j] + '</option>';
+        options += '<option value="' + esc(secteurs[j]) + '"' + sel + '>' + esc(secteurs[j]) + '</option>';
       }
       select.innerHTML = options;
     }
@@ -350,7 +546,6 @@
       if (dateFin) {
         filtered = filtered.filter(function(l) { return l.created_at <= dateFin + ' 23:59:59'; });
       }
-
       renderTable(filtered);
     }
 
@@ -385,37 +580,21 @@
         }
         html += '<tr class="hover:bg-gray-50 transition-colors">' +
           '<td class="px-4 py-3 text-gray-500 font-mono text-xs">#' + lot.id + '</td>' +
-          '<td class="px-4 py-3 text-gray-600 text-xs">' + date + '</td>' +
-          '<td class="px-4 py-3"><span class="bg-purple-100 text-purple-700 text-xs px-2 py-0.5 rounded-full">' + lot.secteur_pedagogique + '</span></td>' +
-          '<td class="px-4 py-3 font-medium text-gray-800">' + lot.nom_ecole + '</td>' +
-          '<td class="px-4 py-3 text-gray-600">' + lot.nom_directeur + ' ' + lot.prenoms_directeur + '</td>' +
-          '<td class="px-4 py-3 text-gray-600 text-xs">' + lot.contact1 + '</td>' +
+          '<td class="px-4 py-3 text-gray-600 text-xs">' + esc(date) + '</td>' +
+          '<td class="px-4 py-3"><span class="bg-purple-100 text-purple-700 text-xs px-2 py-0.5 rounded-full">' + esc(lot.secteur_pedagogique) + '</span></td>' +
+          '<td class="px-4 py-3 font-medium text-gray-800">' + esc(lot.nom_ecole) + '</td>' +
+          '<td class="px-4 py-3 text-gray-600">' + esc(lot.nom_directeur) + ' ' + esc(lot.prenoms_directeur) + '</td>' +
+          '<td class="px-4 py-3 text-gray-600 text-xs">' + esc(lot.contact1) + '</td>' +
           '<td class="px-4 py-3 text-center">' +
             '<span class="bg-green-100 text-green-700 text-xs font-bold px-2 py-0.5 rounded-full">' + eleves.length + '</span>' +
             '<div class="text-[10px] text-gray-400 mt-0.5">' + garcons + '♂ ' + filles + '♀</div>' +
           '</td>' +
           '<td class="px-4 py-3 text-center">' +
-            '<button data-action="view" data-id="' + lot.id + '" class="view-btn px-2 py-1 text-xs bg-blue-50 text-blue-600 rounded hover:bg-blue-100 transition-colors mr-1 cursor-pointer">👁 Voir</button>' +
-            '<button data-action="delete" data-id="' + lot.id + '" class="delete-btn px-2 py-1 text-xs bg-red-50 text-red-600 rounded hover:bg-red-100 transition-colors cursor-pointer">🗑</button>' +
+            '<button data-action="view" data-id="' + lot.id + '" class="table-action-btn px-2 py-1 text-xs bg-blue-50 text-blue-600 rounded hover:bg-blue-100 transition-colors mr-1 cursor-pointer">👁 Voir</button>' +
+            '<button data-action="delete" data-id="' + lot.id + '" class="table-action-btn px-2 py-1 text-xs bg-red-50 text-red-600 rounded hover:bg-red-100 transition-colors cursor-pointer">🗑</button>' +
           '</td></tr>';
       }
       tbody.innerHTML = html;
-
-      // Attacher les événements avec addEventListener (pas onclick inline)
-      var viewBtns = document.querySelectorAll('.view-btn');
-      for (var v = 0; v < viewBtns.length; v++) {
-        viewBtns[v].addEventListener('click', function() {
-          var id = parseInt(this.getAttribute('data-id'));
-          viewDetail(id);
-        });
-      }
-      var deleteBtns = document.querySelectorAll('.delete-btn');
-      for (var d = 0; d < deleteBtns.length; d++) {
-        deleteBtns[d].addEventListener('click', function() {
-          var id = parseInt(this.getAttribute('data-id'));
-          deleteLot(id);
-        });
-      }
     }
 
     // ============ VIEW DETAIL ============
@@ -436,7 +615,6 @@
 
       document.getElementById('modal-title').textContent = 'Lot #' + lot.id + ' — ' + lot.nom_ecole;
 
-      // Regrouper par classe
       var classesMap = {};
       for (var j = 0; j < eleves.length; j++) {
         var e = eleves[j];
@@ -451,27 +629,28 @@
         var list = classesMap[classe];
         classesHtml += '<div class="mb-4">' +
           '<h4 class="font-semibold text-gray-700 text-sm bg-gray-100 rounded-lg px-3 py-2 mb-2">' +
-          '📚 ' + classe + ' <span class="text-gray-400 font-normal">(' + list.length + ')</span></h4>' +
+          '📚 ' + esc(classe) + ' <span class="text-gray-400 font-normal">(' + list.length + ')</span></h4>' +
           '<div class="overflow-x-auto"><table class="w-full text-xs">' +
           '<thead><tr class="text-gray-500 border-b">' +
           '<th class="pb-1 text-left pr-2">#</th><th class="pb-1 text-left pr-2">Nom</th>' +
           '<th class="pb-1 text-left pr-2">Prénoms</th><th class="pb-1 text-center pr-2">Sexe</th>' +
           '<th class="pb-1 text-left pr-2">Naissance</th><th class="pb-1 text-left pr-2">Père</th>' +
           '<th class="pb-1 text-left pr-2">N° Père</th><th class="pb-1 text-left pr-2">Mère</th>' +
-          '<th class="pb-1 text-left">N° Mère</th></tr></thead><tbody>';
+          '<th class="pb-1 text-left pr-2">N° Mère</th><th class="pb-1 text-left">N° Témoin</th></tr></thead><tbody>';
 
         for (var e2 = 0; e2 < list.length; e2++) {
           var el = list[e2];
           classesHtml += '<tr class="border-b border-gray-50">' +
             '<td class="py-1.5 text-gray-400">' + (e2 + 1) + '</td>' +
-            '<td class="py-1.5 font-medium">' + (el.nom || '') + '</td>' +
-            '<td class="py-1.5">' + (el.prenoms || '') + '</td>' +
+            '<td class="py-1.5 font-medium">' + esc(el.nom) + '</td>' +
+            '<td class="py-1.5">' + esc(el.prenoms) + '</td>' +
             '<td class="py-1.5 text-center">' + (el.sexe === 'M' ? '👦' : '👧') + '</td>' +
-            '<td class="py-1.5 text-gray-500">' + (el.date_naissance_probable || '') + '</td>' +
-            '<td class="py-1.5">' + (el.nom_pere || '') + '</td>' +
-            '<td class="py-1.5 text-gray-500">' + (el.numero_pere || '') + '</td>' +
-            '<td class="py-1.5">' + (el.nom_mere || '') + '</td>' +
-            '<td class="py-1.5 text-gray-500">' + (el.numero_mere || '') + '</td></tr>';
+            '<td class="py-1.5 text-gray-500">' + esc(el.date_naissance_probable) + '</td>' +
+            '<td class="py-1.5">' + esc(el.nom_pere) + '</td>' +
+            '<td class="py-1.5 text-gray-500">' + esc(el.numero_pere) + '</td>' +
+            '<td class="py-1.5">' + esc(el.nom_mere) + '</td>' +
+            '<td class="py-1.5 text-gray-500">' + esc(el.numero_mere) + '</td>' +
+            '<td class="py-1.5 text-gray-500">' + esc(el.numero_temoin) + '</td></tr>';
         }
         classesHtml += '</tbody></table></div></div>';
       }
@@ -483,12 +662,12 @@
           '<div class="bg-pink-50 rounded-lg p-3 text-center"><p class="text-2xl font-bold text-pink-600">' + filles + '</p><p class="text-xs text-pink-500">Filles</p></div>' +
         '</div>' +
         '<div class="bg-gray-50 rounded-lg p-3 mb-5 text-sm"><div class="grid grid-cols-2 gap-2">' +
-          '<div><span class="text-gray-500">Secteur:</span> <strong>' + lot.secteur_pedagogique + '</strong></div>' +
-          '<div><span class="text-gray-500">École:</span> <strong>' + lot.nom_ecole + '</strong></div>' +
-          '<div><span class="text-gray-500">Directeur:</span> <strong>' + lot.nom_directeur + ' ' + lot.prenoms_directeur + '</strong></div>' +
-          '<div><span class="text-gray-500">Contact:</span> <strong>' + lot.contact1 + '</strong></div>' +
-          '<div><span class="text-gray-500">DRENAET:</span> <strong>' + lot.drenaet + '</strong></div>' +
-          '<div><span class="text-gray-500">IEPP:</span> <strong>' + lot.iepp + '</strong></div>' +
+          '<div><span class="text-gray-500">Secteur:</span> <strong>' + esc(lot.secteur_pedagogique) + '</strong></div>' +
+          '<div><span class="text-gray-500">École:</span> <strong>' + esc(lot.nom_ecole) + '</strong></div>' +
+          '<div><span class="text-gray-500">Directeur:</span> <strong>' + esc(lot.nom_directeur) + ' ' + esc(lot.prenoms_directeur) + '</strong></div>' +
+          '<div><span class="text-gray-500">Contact:</span> <strong>' + esc(lot.contact1) + '</strong></div>' +
+          '<div><span class="text-gray-500">DRENAET:</span> <strong>' + esc(lot.drenaet) + '</strong></div>' +
+          '<div><span class="text-gray-500">IEPP:</span> <strong>' + esc(lot.iepp) + '</strong></div>' +
         '</div></div>' +
         classesHtml;
 
@@ -506,7 +685,6 @@
     // ============ DELETE ============
     function deleteLot(id) {
       if (!confirm('Supprimer le lot #' + id + ' ? Cette action est irréversible.')) return;
-
       fetch('/api/eleves/' + id, { method: 'DELETE' })
         .then(function(res) {
           if (res.ok) {
@@ -518,10 +696,7 @@
             });
           }
         })
-        .catch(function(err) {
-          console.error('Erreur delete:', err);
-          showToast('error', 'Erreur réseau');
-        });
+        .catch(function() { showToast('error', 'Erreur réseau'); });
     }
 
     // ============ EXPORT EXCEL ============
@@ -530,7 +705,6 @@
         showToast('info', 'Aucune donnée à exporter');
         return;
       }
-
       if (typeof XLSX === 'undefined') {
         showToast('error', 'Bibliothèque Excel non chargée. Rechargez la page.');
         return;
@@ -541,7 +715,6 @@
         var lot = allLots[i];
         var eleves = [];
         try { eleves = JSON.parse(lot.eleves || '[]'); } catch(e) { eleves = []; }
-
         for (var j = 0; j < eleves.length; j++) {
           var eleve = eleves[j];
           rows.push({
@@ -577,78 +750,82 @@
       showToast('success', 'Export de ' + rows.length + ' lignes réussi');
     }
 
-    // ============ ATTACHER LES ÉVÉNEMENTS (addEventListener) ============
+    // ============ EVENT DELEGATION (sécurisé, pas de onclick inline) ============
+    document.addEventListener('click', function(e) {
+      var btn = e.target.closest('.table-action-btn');
+      if (btn) {
+        var action = btn.getAttribute('data-action');
+        var id = parseInt(btn.getAttribute('data-id'));
+        if (action === 'view') viewDetail(id);
+        else if (action === 'delete') deleteLot(id);
+        return;
+      }
+
+      btn = e.target.closest('.secteur-action-btn');
+      if (btn) {
+        var action = btn.getAttribute('data-action');
+        var id = parseInt(btn.getAttribute('data-id'));
+        if (action === 'delete-secteur') deleteSecteur(id);
+        else if (action === 'add-ecole') addEcole(id);
+        else if (action === 'delete-ecole') deleteEcole(id);
+        return;
+      }
+    });
+
+    // ============ DOM READY ============
     document.addEventListener('DOMContentLoaded', function() {
-      // Bouton Actualiser
-      document.getElementById('btn-refresh').addEventListener('click', function() {
-        refreshData();
-      });
+      // Header buttons
+      document.getElementById('btn-refresh').addEventListener('click', refreshData);
+      document.getElementById('btn-export').addEventListener('click', exportExcel);
+      document.getElementById('btn-clear-filters').addEventListener('click', clearFilters);
+      document.getElementById('btn-close-modal').addEventListener('click', closeModal);
 
-      // Bouton Export Excel
-      document.getElementById('btn-export').addEventListener('click', function() {
-        exportExcel();
-      });
-
-      // Bouton Effacer filtres
-      document.getElementById('btn-clear-filters').addEventListener('click', function() {
-        clearFilters();
-      });
-
-      // Bouton Fermer modal
-      document.getElementById('btn-close-modal').addEventListener('click', function() {
-        closeModal();
-      });
-
-      // Cliquer hors du modal pour fermer
+      // Modal click-outside
       document.getElementById('detail-modal').addEventListener('click', function(e) {
         if (e.target === this) closeModal();
       });
 
-      // Filtres
-      document.getElementById('filter-secteur').addEventListener('change', function() {
-        applyFilters();
-      });
-      document.getElementById('filter-ecole').addEventListener('input', function() {
-        debounceFilter();
-      });
-      document.getElementById('filter-dateDebut').addEventListener('change', function() {
-        applyFilters();
-      });
-      document.getElementById('filter-dateFin').addEventListener('change', function() {
-        applyFilters();
+      // Filters
+      document.getElementById('filter-secteur').addEventListener('change', applyFilters);
+      document.getElementById('filter-ecole').addEventListener('input', debounceFilter);
+      document.getElementById('filter-dateDebut').addEventListener('change', applyFilters);
+      document.getElementById('filter-dateFin').addEventListener('change', applyFilters);
+
+      // Secteurs management
+      document.getElementById('secteurs-header').addEventListener('click', toggleSecteursPanel);
+      document.getElementById('btn-add-secteur').addEventListener('click', addSecteur);
+      document.getElementById('new-secteur-input').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') addSecteur();
       });
 
-      // Charger les données initiales
+      // Load initial data
+      loadSecteurs();
       refreshData();
     });
 
-    // ============ KEEP-ALIVE (empêcher la mise en veille) ============
-    // Ping le serveur toutes les 13 minutes
+    // ============ KEEP-ALIVE ============
     setInterval(function() {
       fetch('/api/ping')
         .then(function(res) { return res.json(); })
         .then(function(data) {
-          console.log('⏰ Keep-alive OK:', data.timestamp);
-          var statusEl = document.getElementById('keepalive-status');
-          if (statusEl) {
-            statusEl.textContent = '⏰ Keep-alive actif';
-            statusEl.className = 'text-[10px] bg-green-400/30 text-green-100 px-2 py-1 rounded-full';
+          console.log('Keep-alive OK:', data.timestamp);
+          var el = document.getElementById('keepalive-status');
+          if (el) {
+            el.textContent = '⏰ Keep-alive actif';
+            el.className = 'text-[10px] bg-green-400/30 text-green-100 px-2 py-1 rounded-full';
           }
         })
-        .catch(function(err) {
-          console.error('Keep-alive failed:', err);
-          var statusEl = document.getElementById('keepalive-status');
-          if (statusEl) {
-            statusEl.textContent = '⚠️ Keep-alive échoué';
-            statusEl.className = 'text-[10px] bg-red-400/30 text-red-100 px-2 py-1 rounded-full';
+        .catch(function() {
+          var el = document.getElementById('keepalive-status');
+          if (el) {
+            el.textContent = '⚠️ Keep-alive échoué';
+            el.className = 'text-[10px] bg-red-400/30 text-red-100 px-2 py-1 rounded-full';
           }
         });
-    }, 13 * 60 * 1000); // 13 minutes
+    }, 13 * 60 * 1000);
 
-    // Auto-refresh toutes les 5 minutes
-    setInterval(function() {
-      refreshData();
-    }, 5 * 60 * 1000);
+    // Auto-refresh
+    setInterval(refreshData, 5 * 60 * 1000);
   </script>
 </body>
 </html>
