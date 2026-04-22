@@ -140,6 +140,11 @@ db.serialize(function() {
     "UNIQUE(secteur_id, nom)" +
   ")");
 
+  db.run("CREATE TABLE IF NOT EXISTS app_config (" +
+    "key TEXT PRIMARY KEY," +
+    "value TEXT NOT NULL" +
+  ")");
+
   // Seed default secteurs
   DEFAULT_SECTEURS.forEach(function(s) {
     db.run('INSERT OR IGNORE INTO secteurs (nom) VALUES (?)', [s]);
@@ -347,6 +352,96 @@ app.delete('/api/secteurs/:secteurId/ecoles/:ecoleId', function(req, res) {
     if (this.changes === 0) return res.status(404).json({ error: 'Ecole non trouvee' });
     logAction('DELETE_ECOLE', { id: ecoleId }, req.ip);
     res.json({ success: true, message: 'Ecole supprimee' });
+  });
+});
+
+// ===================== APP CONFIG API (contacts, etc) =====================
+
+// GET app config (public — used by client for contact info)
+app.get('/api/config', function(req, res) {
+  db.all("SELECT key, value FROM app_config WHERE key IN ('contact_whatsapp', 'contact_email', 'contact_nom')", [], function(err, rows) {
+    if (err) return res.status(500).json({ error: 'Erreur base de donnees' });
+    var config = {};
+    rows.forEach(function(r) { config[r.key] = r.value; });
+    res.json(config);
+  });
+});
+
+// PUT app config (admin only)
+app.put('/api/config', function(req, res) {
+  var updates = req.body;
+  var allowedKeys = ['contact_whatsapp', 'contact_email', 'contact_nom'];
+  var completed = 0;
+  var keysToUpdate = Object.keys(updates).filter(function(k) { return allowedKeys.indexOf(k) !== -1; });
+
+  if (keysToUpdate.length === 0) {
+    return res.status(400).json({ error: 'Aucune cle valide' });
+  }
+
+  keysToUpdate.forEach(function(key) {
+    var val = String(updates[key]).trim().substring(0, 200);
+    db.run("INSERT INTO app_config (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = ?",
+      [key, val, val], function(err) {
+        if (err) console.error('Erreur config update:', err);
+        completed++;
+        if (completed === keysToUpdate.length) {
+          logAction('UPDATE_CONFIG', { keys: keysToUpdate }, req.ip);
+          res.json({ success: true });
+        }
+      });
+  });
+});
+
+// ===================== DUPLICATE CHECK =====================
+
+// Check if a student already exists (by name + parents/witness)
+app.post('/api/check-duplicate', function(req, res) {
+  var eleve = req.body;
+
+  if (!eleve || !eleve.nom || !eleve.prenoms) {
+    return res.status(400).json({ error: 'Donnees insuffisantes' });
+  }
+
+  var nom = eleve.nom.trim().toUpperCase();
+  var prenoms = eleve.prenoms.trim().toUpperCase();
+
+  // Search in all lots for matching student
+  db.all('SELECT lots.* FROM lots', [], function(err, rows) {
+    if (err) return res.status(500).json({ error: 'Erreur base de donnees' });
+
+    var duplicates = [];
+
+    rows.forEach(function(row) {
+      var eleves = [];
+      try { eleves = JSON.parse(row.eleves || '[]'); } catch(e) { eleves = []; }
+
+      eleves.forEach(function(existing) {
+        // Match by full name (case-insensitive)
+        var sameName = existing.nom.trim().toUpperCase() === nom &&
+                       existing.prenoms.trim().toUpperCase() === prenoms;
+
+        if (sameName) {
+          duplicates.push({
+            id: row.id,
+            ecole: row.nom_ecole,
+            secteur: row.secteur_pedagogique,
+            date: row.created_at,
+            eleve: {
+              nom: existing.nom,
+              prenoms: existing.prenoms,
+              classe: existing.classe,
+              date_naissance_probable: existing.date_naissance_probable
+            }
+          });
+        }
+      });
+    });
+
+    res.json({
+      found: duplicates.length > 0,
+      count: duplicates.length,
+      duplicates: duplicates
+    });
   });
 });
 
