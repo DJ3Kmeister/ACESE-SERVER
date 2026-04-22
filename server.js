@@ -4,7 +4,6 @@ const basicAuth = require('express-basic-auth');
 const path = require('path');
 const sqlite3 = require('sqlite3').verbose();
 const rateLimit = require('express-rate-limit');
-const helmet = require('helmet');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -28,19 +27,22 @@ const limiter = rateLimit({
 const apiLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 20,
-  message: { error: 'Limite d\'envoi atteinte. Veuillez patienter.' }
+  message: { error: "Limite d'envoi atteinte. Veuillez patienter." }
 });
 
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'", "https:"],
-      scriptSrc: ["'self'", "https:", "'unsafe-inline'"],
-      imgSrc: ["'self'", "data:", "https:"],
-    },
-  },
-}));
+// CSP permissif pour que les CDN (Tailwind, SheetJS) fonctionnent
+app.use((req, res, next) => {
+  res.setHeader(
+    "Content-Security-Policy",
+    "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; " +
+    "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; " +
+    "style-src * data: blob: 'unsafe-inline'; " +
+    "connect-src * data: blob:; " +
+    "img-src * data: blob:; " +
+    "font-src * data: blob:;"
+  );
+  next();
+});
 
 app.use(cors(corsOptions));
 app.use(limiter);
@@ -136,6 +138,11 @@ app.get('/admin', (_, res) => {
 // Health check
 app.get('/health', (_, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Keep-alive ping (pour que le serveur reste éveillé)
+app.get('/api/ping', (_, res) => {
+  res.json({ status: 'awake', timestamp: new Date().toISOString(), uptime: process.uptime() });
 });
 
 // API: Get all lots with filters
@@ -246,7 +253,7 @@ app.post('/api/eleves', apiLimiter, (req, res) => {
     if (err) {
       console.error('Erreur insertion:', err);
       logAction('INSERT_ERROR', { error: err.message }, ip);
-      return res.status(500).json({ error: 'Erreur lors de l\'enregistrement' });
+      return res.status(500).json({ error: "Erreur lors de l'enregistrement" });
     }
 
     logAction('INSERT_SUCCESS', {
@@ -291,6 +298,25 @@ app.get('/api/logs', (req, res) => {
   });
 });
 
+// ===================== KEEP-AWAKE =====================
+// Auto-ping toutes les 13 minutes pour éviter la mise en veille Render
+const PING_INTERVAL = 13 * 60 * 1000; // 13 minutes
+
+function selfPing() {
+  const url = `http://localhost:${PORT}/health`;
+  require('http').get(url, (res) => {
+    console.log(`[${new Date().toISOString()}] 🟢 Keep-alive ping OK (uptime: ${Math.round(process.uptime())}s)`);
+  }).on('error', (err) => {
+    console.error(`[${new Date().toISOString()}] 🔴 Keep-alive ping failed:`, err.message);
+  });
+}
+
+// Démarrer le keep-alive après 60 secondes
+setTimeout(() => {
+  selfPing();
+  setInterval(selfPing, PING_INTERVAL);
+}, 60000);
+
 // ===================== START SERVER =====================
 
 app.listen(PORT, () => {
@@ -302,6 +328,7 @@ app.listen(PORT, () => {
   ║  📊 Dashboard: http://localhost:${PORT}/admin       ║
   ║  🔗 API:       http://localhost:${PORT}/api/eleves  ║
   ║  ❤️  Health:    http://localhost:${PORT}/health      ║
+  ║  ⏰ Keep-alive: ping toutes les 13 min           ║
   ╚══════════════════════════════════════════════════╝
   `);
 });

@@ -34,7 +34,7 @@
   <!-- Header -->
   <header class="bg-gradient-to-r from-green-900 to-green-700 text-white shadow-lg">
     <div class="max-w-7xl mx-auto px-4 py-4">
-      <div class="flex items-center justify-between">
+      <div class="flex items-center justify-between flex-wrap gap-2">
         <div class="flex items-center gap-3">
           <div class="bg-white/20 p-2 rounded-xl text-2xl">🎓</div>
           <div>
@@ -43,10 +43,11 @@
           </div>
         </div>
         <div class="flex items-center gap-3">
-          <button onclick="refreshData()" class="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-sm transition-colors">
+          <span id="keepalive-status" class="text-[10px] bg-green-400/30 text-green-100 px-2 py-1 rounded-full">⏰ Keep-alive actif</span>
+          <button id="btn-refresh" class="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-sm transition-colors cursor-pointer">
             🔄 Actualiser
           </button>
-          <button onclick="exportExcel()" class="flex items-center gap-1.5 px-3 py-1.5 bg-green-500 hover:bg-green-400 rounded-lg text-sm font-medium transition-colors">
+          <button id="btn-export" class="flex items-center gap-1.5 px-3 py-1.5 bg-green-500 hover:bg-green-400 rounded-lg text-sm font-medium transition-colors cursor-pointer">
             📥 Export Excel
           </button>
         </div>
@@ -89,25 +90,25 @@
       <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
         <div>
           <label class="block text-xs text-gray-500 mb-1">Secteur</label>
-          <select id="filter-secteur" onchange="applyFilters()" class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:border-green-500 focus:ring-2 focus:ring-green-200">
+          <select id="filter-secteur" class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:border-green-500 focus:ring-2 focus:ring-green-200">
             <option value="">Tous les secteurs</option>
           </select>
         </div>
         <div>
           <label class="block text-xs text-gray-500 mb-1">École</label>
-          <input type="text" id="filter-ecole" oninput="debounceFilter()" placeholder="Rechercher..." class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:border-green-500 focus:ring-2 focus:ring-green-200">
+          <input type="text" id="filter-ecole" placeholder="Rechercher..." class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:border-green-500 focus:ring-2 focus:ring-green-200">
         </div>
         <div>
           <label class="block text-xs text-gray-500 mb-1">Date début</label>
-          <input type="date" id="filter-dateDebut" onchange="applyFilters()" class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:border-green-500 focus:ring-2 focus:ring-green-200">
+          <input type="date" id="filter-dateDebut" class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:border-green-500 focus:ring-2 focus:ring-green-200">
         </div>
         <div>
           <label class="block text-xs text-gray-500 mb-1">Date fin</label>
-          <input type="date" id="filter-dateFin" onchange="applyFilters()" class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:border-green-500 focus:ring-2 focus:ring-green-200">
+          <input type="date" id="filter-dateFin" class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:border-green-500 focus:ring-2 focus:ring-green-200">
         </div>
       </div>
       <div class="mt-3 flex gap-2">
-        <button onclick="clearFilters()" class="px-3 py-1.5 text-sm text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors">
+        <button id="btn-clear-filters" class="px-3 py-1.5 text-sm text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors cursor-pointer">
           ✕ Effacer les filtres
         </button>
       </div>
@@ -174,125 +175,154 @@
   </div>
 
   <!-- Detail modal -->
-  <div id="detail-modal" class="fixed inset-0 z-50 bg-black/50 hidden items-center justify-center p-4" onclick="closeModal()">
-    <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[85vh] overflow-y-auto animate-slide-up" onclick="event.stopPropagation()">
+  <div id="detail-modal" class="fixed inset-0 z-50 bg-black/50 hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[85vh] overflow-y-auto animate-slide-up">
       <div class="bg-gradient-to-r from-green-700 to-green-600 p-5 flex items-center justify-between sticky top-0 z-10">
         <h3 class="font-bold text-white text-lg" id="modal-title">Détails du lot</h3>
-        <button onclick="closeModal()" class="text-white/80 hover:text-white text-2xl">&times;</button>
+        <button id="btn-close-modal" class="text-white/80 hover:text-white text-2xl cursor-pointer">&times;</button>
       </div>
       <div class="p-5" id="modal-content"></div>
     </div>
   </div>
 
   <script>
-    let allLots = [];
-    let allStats = {};
-    let filterTimeout;
+    // ============ VARIABLES ============
+    var allLots = [];
+    var allStats = {};
+    var filterTimeout = null;
 
     // ============ TOAST ============
     function showToast(type, text) {
-      const container = document.getElementById('toast-container');
-      const colors = {
+      var container = document.getElementById('toast-container');
+      var colors = {
         success: 'bg-green-50 border-green-400 text-green-800',
         error: 'bg-red-50 border-red-400 text-red-800',
         info: 'bg-blue-50 border-blue-400 text-blue-800'
       };
-      const icons = { success: '✅', error: '❌', info: 'ℹ️' };
-      const toast = document.createElement('div');
-      toast.className = `flex items-center gap-2 px-4 py-3 rounded-lg border shadow-lg min-w-[280px] max-w-sm animate-slide-down ${colors[type]}`;
-      toast.innerHTML = `<span>${icons[type]}</span><span class="text-sm font-medium">${text}</span>`;
+      var icons = { success: '✅', error: '❌', info: 'ℹ️' };
+      var toast = document.createElement('div');
+      toast.className = 'flex items-center gap-2 px-4 py-3 rounded-lg border shadow-lg min-w-[280px] max-w-sm animate-slide-down ' + colors[type];
+      toast.innerHTML = '<span>' + icons[type] + '</span><span class="text-sm font-medium">' + text + '</span>';
       container.appendChild(toast);
-      setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.3s'; setTimeout(() => toast.remove(), 300); }, 4000);
+      setTimeout(function() {
+        toast.style.opacity = '0';
+        toast.style.transition = 'opacity 0.3s';
+        setTimeout(function() { toast.remove(); }, 300);
+      }, 4000);
     }
 
     // ============ FETCH DATA ============
-    async function refreshData() {
-      try {
-        const [lotsRes, statsRes] = await Promise.all([
-          fetch('/api/eleves'),
-          fetch('/api/stats')
-        ]);
-        allLots = await lotsRes.json();
-        allStats = await statsRes.json();
+    function refreshData() {
+      var lotsOk = false, statsOk = false;
+      var lotsData, statsData;
+
+      fetch('/api/eleves')
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+          lotsData = data;
+          lotsOk = true;
+          if (statsOk) onDataReady(lotsData, statsData);
+        })
+        .catch(function(err) {
+          console.error('Erreur fetch lots:', err);
+          document.getElementById('loading-overlay').style.display = 'none';
+          showToast('error', 'Erreur de chargement des lots');
+        });
+
+      fetch('/api/stats')
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+          statsData = data;
+          statsOk = true;
+          if (lotsOk) onDataReady(lotsData, statsData);
+        })
+        .catch(function(err) {
+          console.error('Erreur fetch stats:', err);
+          document.getElementById('loading-overlay').style.display = 'none';
+          showToast('error', 'Erreur de chargement des stats');
+        });
+
+      function onDataReady(lots, stats) {
+        allLots = lots;
+        allStats = stats;
         updateStats();
         updateFilters();
         applyFilters();
         document.getElementById('loading-overlay').style.display = 'none';
         showToast('success', 'Données mises à jour');
-      } catch (err) {
-        console.error(err);
-        document.getElementById('loading-overlay').style.display = 'none';
-        showToast('error', 'Erreur de chargement');
       }
     }
 
     // ============ UPDATE STATS ============
     function updateStats() {
-      const g = allStats.global?.[0] || {};
+      var g = (allStats.global && allStats.global[0]) || {};
       document.getElementById('stat-total').textContent = g.total_eleves || 0;
       document.getElementById('stat-ecoles').textContent = g.total_ecoles || 0;
       document.getElementById('stat-secteurs').textContent = g.total_secteurs || 0;
       document.getElementById('stat-lots').textContent = g.total_lots || 0;
 
       // Sector table
-      const secteurTable = document.getElementById('stats-secteur-table');
-      const secteurs = allStats.parSecteur || [];
+      var secteurTable = document.getElementById('stats-secteur-table');
+      var secteurs = allStats.parSecteur || [];
       if (secteurs.length === 0) {
         secteurTable.innerHTML = '<p class="text-gray-400 text-sm text-center py-4">Aucune donnée</p>';
       } else {
-        secteurTable.innerHTML = `
-          <table class="w-full text-sm">
-            <thead><tr class="text-xs text-gray-500 border-b">
-              <th class="pb-2 text-left">Secteur</th>
-              <th class="pb-2 text-center">Lots</th>
-              <th class="pb-2 text-center">Élèves</th>
-            </tr></thead>
-            <tbody>${secteurs.map(s => `
-              <tr class="border-b border-gray-50 hover:bg-gray-50">
-                <td class="py-2 font-medium">${s.secteur_pedagogique}</td>
-                <td class="py-2 text-center">${s.nb_lots}</td>
-                <td class="py-2 text-center font-semibold text-green-600">${s.total_eleves}</td>
-              </tr>
-            `).join('')}</tbody>
-          </table>`;
+        var html = '<table class="w-full text-sm"><thead><tr class="text-xs text-gray-500 border-b">' +
+          '<th class="pb-2 text-left">Secteur</th><th class="pb-2 text-center">Lots</th><th class="pb-2 text-center">Élèves</th>' +
+          '</tr></thead><tbody>';
+        for (var i = 0; i < secteurs.length; i++) {
+          var s = secteurs[i];
+          html += '<tr class="border-b border-gray-50 hover:bg-gray-50">' +
+            '<td class="py-2 font-medium">' + s.secteur_pedagogique + '</td>' +
+            '<td class="py-2 text-center">' + s.nb_lots + '</td>' +
+            '<td class="py-2 text-center font-semibold text-green-600">' + s.total_eleves + '</td></tr>';
+        }
+        html += '</tbody></table>';
+        secteurTable.innerHTML = html;
       }
 
       // Class table
-      const classeTable = document.getElementById('stats-classe-table');
-      const classes = allStats.parClasse || [];
+      var classeTable = document.getElementById('stats-classe-table');
+      var classes = allStats.parClasse || [];
       if (classes.length === 0) {
         classeTable.innerHTML = '<p class="text-gray-400 text-sm text-center py-4">Aucune donnée</p>';
       } else {
-        classeTable.innerHTML = `
-          <table class="w-full text-sm">
-            <thead><tr class="text-xs text-gray-500 border-b">
-              <th class="pb-2 text-left">Classe</th>
-              <th class="pb-2 text-center">Effectif</th>
-              <th class="pb-2 text-left">Barre</th>
-            </tr></thead>
-            <tbody>${classes.map(c => {
-              const max = Math.max(...classes.map(x => x.effectif));
-              const pct = max > 0 ? (c.effectif / max * 100) : 0;
-              return `
-              <tr class="border-b border-gray-50 hover:bg-gray-50">
-                <td class="py-2 font-medium">${c.classe}</td>
-                <td class="py-2 text-center font-semibold text-blue-600">${c.effectif}</td>
-                <td class="py-2"><div class="w-full bg-gray-100 rounded-full h-3">
-                  <div class="bg-blue-500 h-3 rounded-full" style="width:${pct}%"></div>
-                </div></td>
-              </tr>`;
-            }).join('')}</tbody>
-          </table>`;
+        var maxVal = 0;
+        for (var i = 0; i < classes.length; i++) {
+          if (classes[i].effectif > maxVal) maxVal = classes[i].effectif;
+        }
+        var html2 = '<table class="w-full text-sm"><thead><tr class="text-xs text-gray-500 border-b">' +
+          '<th class="pb-2 text-left">Classe</th><th class="pb-2 text-center">Effectif</th><th class="pb-2 text-left">Barre</th>' +
+          '</tr></thead><tbody>';
+        for (var j = 0; j < classes.length; j++) {
+          var c = classes[j];
+          var pct = maxVal > 0 ? (c.effectif / maxVal * 100) : 0;
+          html2 += '<tr class="border-b border-gray-50 hover:bg-gray-50">' +
+            '<td class="py-2 font-medium">' + c.classe + '</td>' +
+            '<td class="py-2 text-center font-semibold text-blue-600">' + c.effectif + '</td>' +
+            '<td class="py-2"><div class="w-full bg-gray-100 rounded-full h-3">' +
+            '<div class="bg-blue-500 h-3 rounded-full" style="width:' + pct + '%"></div></div></td></tr>';
+        }
+        html2 += '</tbody></table>';
+        classeTable.innerHTML = html2;
       }
     }
 
     // ============ FILTERS ============
     function updateFilters() {
-      const select = document.getElementById('filter-secteur');
-      const current = select.value;
-      const secteurs = [...new Set(allLots.map(l => l.secteur_pedagogique))].sort();
-      select.innerHTML = '<option value="">Tous les secteurs</option>' +
-        secteurs.map(s => `<option value="${s}" ${s === current ? 'selected' : ''}>${s}</option>`).join('');
+      var select = document.getElementById('filter-secteur');
+      var current = select.value;
+      var secteursSet = {};
+      for (var i = 0; i < allLots.length; i++) {
+        secteursSet[allLots[i].secteur_pedagogique] = true;
+      }
+      var secteurs = Object.keys(secteursSet).sort();
+      var options = '<option value="">Tous les secteurs</option>';
+      for (var j = 0; j < secteurs.length; j++) {
+        var sel = secteurs[j] === current ? ' selected' : '';
+        options += '<option value="' + secteurs[j] + '"' + sel + '>' + secteurs[j] + '</option>';
+      }
+      select.innerHTML = options;
     }
 
     function debounceFilter() {
@@ -301,16 +331,25 @@
     }
 
     function applyFilters() {
-      const secteur = document.getElementById('filter-secteur').value;
-      const ecole = document.getElementById('filter-ecole').value;
-      const dateDebut = document.getElementById('filter-dateDebut').value;
-      const dateFin = document.getElementById('filter-dateFin').value;
+      var secteur = document.getElementById('filter-secteur').value;
+      var ecole = document.getElementById('filter-ecole').value;
+      var dateDebut = document.getElementById('filter-dateDebut').value;
+      var dateFin = document.getElementById('filter-dateFin').value;
 
-      let filtered = [...allLots];
-      if (secteur) filtered = filtered.filter(l => l.secteur_pedagogique === secteur);
-      if (ecole) filtered = filtered.filter(l => l.nom_ecole.toLowerCase().includes(ecole.toLowerCase()));
-      if (dateDebut) filtered = filtered.filter(l => l.created_at >= dateDebut);
-      if (dateFin) filtered = filtered.filter(l => l.created_at <= dateFin + ' 23:59:59');
+      var filtered = allLots.slice();
+      if (secteur) {
+        filtered = filtered.filter(function(l) { return l.secteur_pedagogique === secteur; });
+      }
+      if (ecole) {
+        var ecoleLower = ecole.toLowerCase();
+        filtered = filtered.filter(function(l) { return l.nom_ecole.toLowerCase().indexOf(ecoleLower) !== -1; });
+      }
+      if (dateDebut) {
+        filtered = filtered.filter(function(l) { return l.created_at >= dateDebut; });
+      }
+      if (dateFin) {
+        filtered = filtered.filter(function(l) { return l.created_at <= dateFin + ' 23:59:59'; });
+      }
 
       renderTable(filtered);
     }
@@ -325,7 +364,7 @@
 
     // ============ RENDER TABLE ============
     function renderTable(lots) {
-      const tbody = document.getElementById('data-table-body');
+      var tbody = document.getElementById('data-table-body');
       document.getElementById('table-count').textContent = lots.length;
 
       if (lots.length === 0) {
@@ -333,139 +372,156 @@
         return;
       }
 
-      tbody.innerHTML = lots.map(lot => {
-        const eleves = JSON.parse(lot.eleves || '[]');
-        const date = new Date(lot.created_at).toLocaleDateString('fr-FR');
-        const garcons = eleves.filter(e => e.sexe === 'M').length;
-        const filles = eleves.filter(e => e.sexe === 'F').length;
-        return `
-          <tr class="hover:bg-gray-50 transition-colors">
-            <td class="px-4 py-3 text-gray-500 font-mono text-xs">#${lot.id}</td>
-            <td class="px-4 py-3 text-gray-600 text-xs">${date}</td>
-            <td class="px-4 py-3">
-              <span class="bg-purple-100 text-purple-700 text-xs px-2 py-0.5 rounded-full">${lot.secteur_pedagogique}</span>
-            </td>
-            <td class="px-4 py-3 font-medium text-gray-800">${lot.nom_ecole}</td>
-            <td class="px-4 py-3 text-gray-600">${lot.nom_directeur} ${lot.prenoms_directeur}</td>
-            <td class="px-4 py-3 text-gray-600 text-xs">${lot.contact1}</td>
-            <td class="px-4 py-3 text-center">
-              <span class="bg-green-100 text-green-700 text-xs font-bold px-2 py-0.5 rounded-full">${eleves.length}</span>
-              <div class="text-[10px] text-gray-400 mt-0.5">${garcons}♂ ${filles}♀</div>
-            </td>
-            <td class="px-4 py-3 text-center">
-              <button onclick="viewDetail(${lot.id})" class="px-2 py-1 text-xs bg-blue-50 text-blue-600 rounded hover:bg-blue-100 transition-colors mr-1">👁 Voir</button>
-              <button onclick="deleteLot(${lot.id})" class="px-2 py-1 text-xs bg-red-50 text-red-600 rounded hover:bg-red-100 transition-colors">🗑</button>
-            </td>
-          </tr>`;
-      }).join('');
+      var html = '';
+      for (var i = 0; i < lots.length; i++) {
+        var lot = lots[i];
+        var eleves = [];
+        try { eleves = JSON.parse(lot.eleves || '[]'); } catch(e) { eleves = []; }
+        var date = new Date(lot.created_at).toLocaleDateString('fr-FR');
+        var garcons = 0, filles = 0;
+        for (var k = 0; k < eleves.length; k++) {
+          if (eleves[k].sexe === 'M') garcons++;
+          else filles++;
+        }
+        html += '<tr class="hover:bg-gray-50 transition-colors">' +
+          '<td class="px-4 py-3 text-gray-500 font-mono text-xs">#' + lot.id + '</td>' +
+          '<td class="px-4 py-3 text-gray-600 text-xs">' + date + '</td>' +
+          '<td class="px-4 py-3"><span class="bg-purple-100 text-purple-700 text-xs px-2 py-0.5 rounded-full">' + lot.secteur_pedagogique + '</span></td>' +
+          '<td class="px-4 py-3 font-medium text-gray-800">' + lot.nom_ecole + '</td>' +
+          '<td class="px-4 py-3 text-gray-600">' + lot.nom_directeur + ' ' + lot.prenoms_directeur + '</td>' +
+          '<td class="px-4 py-3 text-gray-600 text-xs">' + lot.contact1 + '</td>' +
+          '<td class="px-4 py-3 text-center">' +
+            '<span class="bg-green-100 text-green-700 text-xs font-bold px-2 py-0.5 rounded-full">' + eleves.length + '</span>' +
+            '<div class="text-[10px] text-gray-400 mt-0.5">' + garcons + '♂ ' + filles + '♀</div>' +
+          '</td>' +
+          '<td class="px-4 py-3 text-center">' +
+            '<button data-action="view" data-id="' + lot.id + '" class="view-btn px-2 py-1 text-xs bg-blue-50 text-blue-600 rounded hover:bg-blue-100 transition-colors mr-1 cursor-pointer">👁 Voir</button>' +
+            '<button data-action="delete" data-id="' + lot.id + '" class="delete-btn px-2 py-1 text-xs bg-red-50 text-red-600 rounded hover:bg-red-100 transition-colors cursor-pointer">🗑</button>' +
+          '</td></tr>';
+      }
+      tbody.innerHTML = html;
+
+      // Attacher les événements avec addEventListener (pas onclick inline)
+      var viewBtns = document.querySelectorAll('.view-btn');
+      for (var v = 0; v < viewBtns.length; v++) {
+        viewBtns[v].addEventListener('click', function() {
+          var id = parseInt(this.getAttribute('data-id'));
+          viewDetail(id);
+        });
+      }
+      var deleteBtns = document.querySelectorAll('.delete-btn');
+      for (var d = 0; d < deleteBtns.length; d++) {
+        deleteBtns[d].addEventListener('click', function() {
+          var id = parseInt(this.getAttribute('data-id'));
+          deleteLot(id);
+        });
+      }
     }
 
     // ============ VIEW DETAIL ============
     function viewDetail(id) {
-      const lot = allLots.find(l => l.id === id);
+      var lot = null;
+      for (var i = 0; i < allLots.length; i++) {
+        if (allLots[i].id === id) { lot = allLots[i]; break; }
+      }
       if (!lot) return;
 
-      const eleves = JSON.parse(lot.eleves || '[]');
-      const garcons = eleves.filter(e => e.sexe === 'M').length;
-      const filles = eleves.filter(e => e.sexe === 'F').length;
+      var eleves = [];
+      try { eleves = JSON.parse(lot.eleves || '[]'); } catch(e) { eleves = []; }
+      var garcons = 0, filles = 0;
+      for (var k = 0; k < eleves.length; k++) {
+        if (eleves[k].sexe === 'M') garcons++;
+        else filles++;
+      }
 
-      document.getElementById('modal-title').textContent = `Lot #${lot.id} — ${lot.nom_ecole}`;
+      document.getElementById('modal-title').textContent = 'Lot #' + lot.id + ' — ' + lot.nom_ecole;
 
-      const classesMap = {};
-      eleves.forEach(e => {
+      // Regrouper par classe
+      var classesMap = {};
+      for (var j = 0; j < eleves.length; j++) {
+        var e = eleves[j];
         if (!classesMap[e.classe]) classesMap[e.classe] = [];
         classesMap[e.classe].push(e);
-      });
+      }
 
-      let classesHtml = Object.entries(classesMap).sort(([a], [b]) => a.localeCompare(b)).map(([classe, list]) => `
-        <div class="mb-4">
-          <h4 class="font-semibold text-gray-700 text-sm bg-gray-100 rounded-lg px-3 py-2 mb-2">
-            📚 ${classe} <span class="text-gray-400 font-normal">(${list.length})</span>
-          </h4>
-          <div class="overflow-x-auto">
-            <table class="w-full text-xs">
-              <thead><tr class="text-gray-500 border-b">
-                <th class="pb-1 text-left pr-2">#</th>
-                <th class="pb-1 text-left pr-2">Nom</th>
-                <th class="pb-1 text-left pr-2">Prénoms</th>
-                <th class="pb-1 text-center pr-2">Sexe</th>
-                <th class="pb-1 text-left pr-2">Naissance</th>
-                <th class="pb-1 text-left pr-2">Père</th>
-                <th class="pb-1 text-left pr-2">N° Père</th>
-                <th class="pb-1 text-left pr-2">Mère</th>
-                <th class="pb-1 text-left">N° Mère</th>
-              </tr></thead>
-              <tbody>${list.map((e, i) => `
-                <tr class="border-b border-gray-50">
-                  <td class="py-1.5 text-gray-400">${i + 1}</td>
-                  <td class="py-1.5 font-medium">${e.nom}</td>
-                  <td class="py-1.5">${e.prenoms}</td>
-                  <td class="py-1.5 text-center">${e.sexe === 'M' ? '👦' : '👧'}</td>
-                  <td class="py-1.5 text-gray-500">${e.date_naissance_probable}</td>
-                  <td class="py-1.5">${e.nom_pere}</td>
-                  <td class="py-1.5 text-gray-500">${e.numero_pere}</td>
-                  <td class="py-1.5">${e.nom_mere}</td>
-                  <td class="py-1.5 text-gray-500">${e.numero_mere}</td>
-                </tr>
-              `).join('')}</tbody>
-            </table>
-          </div>
-        </div>
-      `).join('');
+      var classKeys = Object.keys(classesMap).sort();
+      var classesHtml = '';
+      for (var c = 0; c < classKeys.length; c++) {
+        var classe = classKeys[c];
+        var list = classesMap[classe];
+        classesHtml += '<div class="mb-4">' +
+          '<h4 class="font-semibold text-gray-700 text-sm bg-gray-100 rounded-lg px-3 py-2 mb-2">' +
+          '📚 ' + classe + ' <span class="text-gray-400 font-normal">(' + list.length + ')</span></h4>' +
+          '<div class="overflow-x-auto"><table class="w-full text-xs">' +
+          '<thead><tr class="text-gray-500 border-b">' +
+          '<th class="pb-1 text-left pr-2">#</th><th class="pb-1 text-left pr-2">Nom</th>' +
+          '<th class="pb-1 text-left pr-2">Prénoms</th><th class="pb-1 text-center pr-2">Sexe</th>' +
+          '<th class="pb-1 text-left pr-2">Naissance</th><th class="pb-1 text-left pr-2">Père</th>' +
+          '<th class="pb-1 text-left pr-2">N° Père</th><th class="pb-1 text-left pr-2">Mère</th>' +
+          '<th class="pb-1 text-left">N° Mère</th></tr></thead><tbody>';
 
-      document.getElementById('modal-content').innerHTML = `
-        <div class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-5">
-          <div class="bg-green-50 rounded-lg p-3 text-center">
-            <p class="text-2xl font-bold text-green-600">${eleves.length}</p>
-            <p class="text-xs text-green-500">Total élèves</p>
-          </div>
-          <div class="bg-blue-50 rounded-lg p-3 text-center">
-            <p class="text-2xl font-bold text-blue-600">${garcons}</p>
-            <p class="text-xs text-blue-500">Garçons</p>
-          </div>
-          <div class="bg-pink-50 rounded-lg p-3 text-center">
-            <p class="text-2xl font-bold text-pink-600">${filles}</p>
-            <p class="text-xs text-pink-500">Filles</p>
-          </div>
-        </div>
-        <div class="bg-gray-50 rounded-lg p-3 mb-5 text-sm">
-          <div class="grid grid-cols-2 gap-2">
-            <div><span class="text-gray-500">Secteur:</span> <strong>${lot.secteur_pedagogique}</strong></div>
-            <div><span class="text-gray-500">École:</span> <strong>${lot.nom_ecole}</strong></div>
-            <div><span class="text-gray-500">Directeur:</span> <strong>${lot.nom_directeur} ${lot.prenoms_directeur}</strong></div>
-            <div><span class="text-gray-500">Contact:</span> <strong>${lot.contact1}</strong></div>
-            <div><span class="text-gray-500">DRENAET:</span> <strong>${lot.drenaet}</strong></div>
-            <div><span class="text-gray-500">IEPP:</span> <strong>${lot.iepp}</strong></div>
-          </div>
-        </div>
-        ${classesHtml}
-      `;
+        for (var e2 = 0; e2 < list.length; e2++) {
+          var el = list[e2];
+          classesHtml += '<tr class="border-b border-gray-50">' +
+            '<td class="py-1.5 text-gray-400">' + (e2 + 1) + '</td>' +
+            '<td class="py-1.5 font-medium">' + (el.nom || '') + '</td>' +
+            '<td class="py-1.5">' + (el.prenoms || '') + '</td>' +
+            '<td class="py-1.5 text-center">' + (el.sexe === 'M' ? '👦' : '👧') + '</td>' +
+            '<td class="py-1.5 text-gray-500">' + (el.date_naissance_probable || '') + '</td>' +
+            '<td class="py-1.5">' + (el.nom_pere || '') + '</td>' +
+            '<td class="py-1.5 text-gray-500">' + (el.numero_pere || '') + '</td>' +
+            '<td class="py-1.5">' + (el.nom_mere || '') + '</td>' +
+            '<td class="py-1.5 text-gray-500">' + (el.numero_mere || '') + '</td></tr>';
+        }
+        classesHtml += '</tbody></table></div></div>';
+      }
 
-      const modal = document.getElementById('detail-modal');
+      document.getElementById('modal-content').innerHTML =
+        '<div class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-5">' +
+          '<div class="bg-green-50 rounded-lg p-3 text-center"><p class="text-2xl font-bold text-green-600">' + eleves.length + '</p><p class="text-xs text-green-500">Total élèves</p></div>' +
+          '<div class="bg-blue-50 rounded-lg p-3 text-center"><p class="text-2xl font-bold text-blue-600">' + garcons + '</p><p class="text-xs text-blue-500">Garçons</p></div>' +
+          '<div class="bg-pink-50 rounded-lg p-3 text-center"><p class="text-2xl font-bold text-pink-600">' + filles + '</p><p class="text-xs text-pink-500">Filles</p></div>' +
+        '</div>' +
+        '<div class="bg-gray-50 rounded-lg p-3 mb-5 text-sm"><div class="grid grid-cols-2 gap-2">' +
+          '<div><span class="text-gray-500">Secteur:</span> <strong>' + lot.secteur_pedagogique + '</strong></div>' +
+          '<div><span class="text-gray-500">École:</span> <strong>' + lot.nom_ecole + '</strong></div>' +
+          '<div><span class="text-gray-500">Directeur:</span> <strong>' + lot.nom_directeur + ' ' + lot.prenoms_directeur + '</strong></div>' +
+          '<div><span class="text-gray-500">Contact:</span> <strong>' + lot.contact1 + '</strong></div>' +
+          '<div><span class="text-gray-500">DRENAET:</span> <strong>' + lot.drenaet + '</strong></div>' +
+          '<div><span class="text-gray-500">IEPP:</span> <strong>' + lot.iepp + '</strong></div>' +
+        '</div></div>' +
+        classesHtml;
+
+      var modal = document.getElementById('detail-modal');
       modal.classList.remove('hidden');
       modal.classList.add('flex');
     }
 
     function closeModal() {
-      const modal = document.getElementById('detail-modal');
+      var modal = document.getElementById('detail-modal');
       modal.classList.add('hidden');
       modal.classList.remove('flex');
     }
 
     // ============ DELETE ============
-    async function deleteLot(id) {
-      if (!confirm(`Supprimer le lot #${id} ? Cette action est irréversible.`)) return;
-      try {
-        const res = await fetch(`/api/eleves/${id}`, { method: 'DELETE' });
-        if (res.ok) {
-          showToast('success', 'Lot supprimé');
-          refreshData();
-        } else {
-          showToast('error', 'Erreur de suppression');
-        }
-      } catch (err) {
-        showToast('error', 'Erreur réseau');
-      }
+    function deleteLot(id) {
+      if (!confirm('Supprimer le lot #' + id + ' ? Cette action est irréversible.')) return;
+
+      fetch('/api/eleves/' + id, { method: 'DELETE' })
+        .then(function(res) {
+          if (res.ok) {
+            showToast('success', 'Lot supprimé');
+            refreshData();
+          } else {
+            return res.json().then(function(data) {
+              showToast('error', data.error || 'Erreur de suppression');
+            });
+          }
+        })
+        .catch(function(err) {
+          console.error('Erreur delete:', err);
+          showToast('error', 'Erreur réseau');
+        });
     }
 
     // ============ EXPORT EXCEL ============
@@ -475,10 +531,19 @@
         return;
       }
 
-      const rows = [];
-      allLots.forEach(lot => {
-        const eleves = JSON.parse(lot.eleves || '[]');
-        eleves.forEach(eleve => {
+      if (typeof XLSX === 'undefined') {
+        showToast('error', 'Bibliothèque Excel non chargée. Rechargez la page.');
+        return;
+      }
+
+      var rows = [];
+      for (var i = 0; i < allLots.length; i++) {
+        var lot = allLots[i];
+        var eleves = [];
+        try { eleves = JSON.parse(lot.eleves || '[]'); } catch(e) { eleves = []; }
+
+        for (var j = 0; j < eleves.length; j++) {
+          var eleve = eleves[j];
           rows.push({
             'ID Lot': lot.id,
             'Date': new Date(lot.created_at).toLocaleDateString('fr-FR'),
@@ -486,7 +551,7 @@
             'IEPP': lot.iepp,
             'Secteur': lot.secteur_pedagogique,
             'École': lot.nom_ecole,
-            'Directeur': `${lot.nom_directeur} ${lot.prenoms_directeur}`,
+            'Directeur': lot.nom_directeur + ' ' + lot.prenoms_directeur,
             'Contact 1': lot.contact1,
             'Contact 2': lot.contact2,
             'Email': lot.email,
@@ -500,23 +565,90 @@
             'Nom Mère': eleve.nom_mere,
             'N° Mère': eleve.numero_mere,
             'Nom Témoin': eleve.nom_temoin,
-            'N° Témoin': eleve.numero_temoin,
+            'N° Témoin': eleve.numero_temoin
           });
-        });
-      });
+        }
+      }
 
-      const ws = XLSX.utils.json_to_sheet(rows);
-      const wb = XLSX.utils.book_new();
+      var ws = XLSX.utils.json_to_sheet(rows);
+      var wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Élèves ACESE');
-      XLSX.writeFile(wb, `ACESE_IEPP_GRABO_${new Date().toISOString().split('T')[0]}.xlsx`);
-      showToast('success', `Export de ${rows.length} lignes réussi`);
+      XLSX.writeFile(wb, 'ACESE_IEPP_GRABO_' + new Date().toISOString().split('T')[0] + '.xlsx');
+      showToast('success', 'Export de ' + rows.length + ' lignes réussi');
     }
 
-    // ============ INIT ============
-    refreshData();
+    // ============ ATTACHER LES ÉVÉNEMENTS (addEventListener) ============
+    document.addEventListener('DOMContentLoaded', function() {
+      // Bouton Actualiser
+      document.getElementById('btn-refresh').addEventListener('click', function() {
+        refreshData();
+      });
 
-    // Auto-refresh every 5 minutes
-    setInterval(refreshData, 5 * 60 * 1000);
+      // Bouton Export Excel
+      document.getElementById('btn-export').addEventListener('click', function() {
+        exportExcel();
+      });
+
+      // Bouton Effacer filtres
+      document.getElementById('btn-clear-filters').addEventListener('click', function() {
+        clearFilters();
+      });
+
+      // Bouton Fermer modal
+      document.getElementById('btn-close-modal').addEventListener('click', function() {
+        closeModal();
+      });
+
+      // Cliquer hors du modal pour fermer
+      document.getElementById('detail-modal').addEventListener('click', function(e) {
+        if (e.target === this) closeModal();
+      });
+
+      // Filtres
+      document.getElementById('filter-secteur').addEventListener('change', function() {
+        applyFilters();
+      });
+      document.getElementById('filter-ecole').addEventListener('input', function() {
+        debounceFilter();
+      });
+      document.getElementById('filter-dateDebut').addEventListener('change', function() {
+        applyFilters();
+      });
+      document.getElementById('filter-dateFin').addEventListener('change', function() {
+        applyFilters();
+      });
+
+      // Charger les données initiales
+      refreshData();
+    });
+
+    // ============ KEEP-ALIVE (empêcher la mise en veille) ============
+    // Ping le serveur toutes les 13 minutes
+    setInterval(function() {
+      fetch('/api/ping')
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+          console.log('⏰ Keep-alive OK:', data.timestamp);
+          var statusEl = document.getElementById('keepalive-status');
+          if (statusEl) {
+            statusEl.textContent = '⏰ Keep-alive actif';
+            statusEl.className = 'text-[10px] bg-green-400/30 text-green-100 px-2 py-1 rounded-full';
+          }
+        })
+        .catch(function(err) {
+          console.error('Keep-alive failed:', err);
+          var statusEl = document.getElementById('keepalive-status');
+          if (statusEl) {
+            statusEl.textContent = '⚠️ Keep-alive échoué';
+            statusEl.className = 'text-[10px] bg-red-400/30 text-red-100 px-2 py-1 rounded-full';
+          }
+        });
+    }, 13 * 60 * 1000); // 13 minutes
+
+    // Auto-refresh toutes les 5 minutes
+    setInterval(function() {
+      refreshData();
+    }, 5 * 60 * 1000);
   </script>
 </body>
 </html>

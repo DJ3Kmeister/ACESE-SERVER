@@ -12,7 +12,6 @@
     "express": "^4.22.0",
     "express-basic-auth": "^1.2.1",
     "express-rate-limit": "^7.5.0",
-    "helmet": "^8.0.0",
     "sqlite3": "^5.1.7"
   },
   "devDependencies": {
