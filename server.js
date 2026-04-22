@@ -2,12 +2,19 @@ const express = require('express');
 const cors = require('cors');
 const basicAuth = require('express-basic-auth');
 const path = require('path');
+const fs = require('fs');
 const sqlite3 = require('sqlite3').verbose();
 const rateLimit = require('express-rate-limit');
 
 const app = express();
 const PORT = process.env.PORT || 10000;
-const dbFile = process.env.DB_FILE || 'collecte.db';
+
+// Database file (ephemeral on Render free tier)
+const DB_FILENAME = process.env.DB_FILENAME || 'collecte.db';
+const dbFile = process.env.DB_FILE || DB_FILENAME;
+
+console.log(`📁 Base de données: ${dbFile}`);
+
 const db = new sqlite3.Database(dbFile);
 
 // ===================== SECURITY HELPERS =====================
@@ -577,6 +584,118 @@ app.get('/api/logs', function(req, res) {
   db.all('SELECT * FROM logs ORDER BY created_at DESC LIMIT ?', [limit], function(err, rows) {
     if (err) return res.status(500).json({ error: 'Erreur base de donnees' });
     res.json(rows);
+  });
+});
+
+// ===================== BACKUP / RESTORE API =====================
+
+// Export entire database as JSON (admin downloads this)
+app.get('/api/backup/download', function(req, res) {
+  db.all('SELECT * FROM lots ORDER BY id ASC', [], function(err, rows) {
+    if (err) return res.status(500).json({ error: 'Erreur base de données' });
+
+    db.all('SELECT * FROM logs ORDER BY id ASC', [], function(err2, logs) {
+      if (err2) logs = [];
+
+      db.all("SELECT * FROM app_config", [], function(err3, config) {
+        if (err3) config = [];
+
+        db.all("SELECT * FROM secteurs", [], function(err4, secteurs) {
+          if (err4) secteurs = [];
+
+          db.all("SELECT * FROM ecoles", [], function(err5, ecoles) {
+            if (err5) ecoles = [];
+
+            var backup = {
+              version: '3.0',
+              exported_at: new Date().toISOString(),
+              lots: rows,
+              logs: logs,
+              config: config,
+              secteurs: secteurs,
+              ecoles: ecoles
+            };
+
+            var filename = 'ACESE_backup_' + new Date().toISOString().split('T')[0] + '.json';
+            res.setHeader('Content-Type', 'application/json');
+            res.setHeader('Content-Disposition', 'attachment; filename="' + filename + '"');
+            res.json(backup);
+          });
+        });
+      });
+    });
+  });
+});
+
+// Restore database from JSON upload
+app.post('/api/backup/restore', function(req, res) {
+  var backup = req.body;
+
+  if (!backup || !backup.lots) {
+    return res.status(400).json({ error: 'Fichier de sauvegarde invalide' });
+  }
+
+  // Clear existing data
+  db.serialize(function() {
+    db.run('DELETE FROM ecoles');
+    db.run('DELETE FROM lots');
+    db.run('DELETE FROM logs');
+    db.run('DELETE FROM app_config');
+
+    // Restore lots
+    var stmt = db.prepare("INSERT INTO lots " +
+      "(id, drenaet, iepp, secteur_pedagogique, nom_ecole, nom_directeur, prenoms_directeur, " +
+      "contact1, contact2, email, eleves, created_at, updated_at) " +
+      "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+
+    (backup.lots || []).forEach(function(lot) {
+      stmt.run([
+        lot.id, lot.drenaet, lot.iepp, lot.secteur_pedagogique, lot.nom_ecole,
+        lot.nom_directeur, lot.prenoms_directeur, lot.contact1,
+        lot.contact2 || '', lot.email || '',
+        typeof lot.eleves === 'string' ? lot.eleves : JSON.stringify(lot.eleves || []),
+        lot.created_at, lot.updated_at
+      ]);
+    });
+    stmt.finalize();
+
+    // Restore config
+    if (backup.config && backup.config.length > 0) {
+      var cfgStmt = db.prepare("INSERT OR REPLACE INTO app_config (key, value) VALUES (?, ?)");
+      backup.config.forEach(function(c) { cfgStmt.run([c.key, c.value]); });
+      cfgStmt.finalize();
+    }
+
+    // Restore secteurs
+    if (backup.secteurs && backup.secteurs.length > 0) {
+      var secStmt = db.prepare("INSERT OR IGNORE INTO secteurs (id, nom) VALUES (?, ?)");
+      backup.secteurs.forEach(function(s) { secStmt.run([s.id, s.nom]); });
+      secStmt.finalize();
+    }
+
+    // Restore ecoles
+    if (backup.ecoles && backup.ecoles.length > 0) {
+      var ecoStmt = db.prepare("INSERT OR IGNORE INTO ecoles (id, secteur_id, nom) VALUES (?, ?, ?)");
+      backup.ecoles.forEach(function(e) { ecoStmt.run([e.id, e.secteur_id, e.nom]); });
+      ecoStmt.finalize();
+    }
+
+    logAction('RESTORE_BACKUP', { lots_restored: (backup.lots || []).length }, req.ip);
+    res.json({ success: true, lots_restored: (backup.lots || []).length });
+  });
+});
+
+// Auto-backup reminder: show count in health
+app.get('/api/backup/stats', function(req, res) {
+  db.get("SELECT COUNT(*) as total_lots, " +
+    "SUM(CASE WHEN eleves IS NOT NULL THEN json_array_length(eleves) ELSE 0 END) as total_eleves " +
+    "FROM lots", [], function(err, row) {
+    if (err) return res.status(500).json({ error: 'Erreur' });
+    res.json({
+      total_lots: row.total_lots || 0,
+      total_eleves: row.total_eleves || 0,
+      last_backup_hint: 'Téléchargez une sauvegarde depuis /admin ou /api/backup/download'
+    });
   });
 });
 
