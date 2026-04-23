@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ACESE – Admin | IEPP GRABO</title>
+  <title>ACESE – Dashboard Admin | IEPP GRABO</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎓</text></svg>">
@@ -40,12 +40,12 @@
         <div class="flex items-center gap-3">
           <div class="bg-white/20 p-2 rounded-xl text-2xl">🎓</div>
           <div>
-            <h1 class="text-xl font-bold">ACESE – Admin</h1>
-            <p class="text-sm text-green-200">IEPP GRABO • DRENAET SAN PEDRO </p>
+            <h1 class="text-xl font-bold">ACESE – Dashboard Admin</h1>
+            <p class="text-sm text-green-200">IEPP GRABO • DRENAET San-Pédro • Côte d'Ivoire</p>
           </div>
         </div>
         <div class="flex items-center gap-3 flex-wrap">
-          <span class="text-[10px] text-white/30 font-light leading-tight text-right">WebApp powered by<br>DJ3K S3PH1R0TH</span>
+          <span class="text-[8px] text-white/30 font-light leading-tight text-right">WebApp powered by<br>DJ3K S3PH1R0TH</span>
           <span id="keepalive-status" class="text-[10px] bg-green-400/30 text-green-100 px-2 py-1 rounded-full">⏰ Keep-alive actif</span>
           <button id="btn-refresh" class="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-sm transition-colors cursor-pointer">
             🔄 Actualiser
@@ -59,35 +59,35 @@
         </div>
       </div>
       <div class="mt-3 text-xs text-green-200 bg-white/10 rounded-lg px-3 py-1.5 text-center">
-        Interface d'administration
+        RÉPUBLIQUE DE CÔTE D'IVOIRE — Union - Discipline - Travail
       </div>
     </div>
   </header>
 
   <!-- Stats cards -->
   <div class="max-w-7xl mx-auto px-4 -mt-4">
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-3" id="stats-cards">
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-3" id="stats-cards">
       <div class="bg-white rounded-xl shadow-md p-4 border-l-4 border-green-500 animate-slide-up">
         <p class="text-xs text-gray-500 uppercase font-medium">Total Élèves</p>
         <p class="text-3xl font-bold text-green-600 mt-1" id="stat-total">—</p>
       </div>
-      <div class="max-w-7xl mx-auto px-4 -mt-4">
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-3" id="stats-cards">
-      <div class="bg-white rounded-xl shadow-md p-4 border-l-4 border-green-500 animate-slide-up">
-        <p class="text-xs text-gray-500 uppercase font-medium">Total Filles</p>
-        <p class="text-3xl font-bold text-green-600 mt-1" id="stat-fille">—</p>
+      <div class="bg-white rounded-xl shadow-md p-4 border-l-4 border-sky-500 animate-slide-up" style="animation-delay:0.05s">
+        <p class="text-xs text-gray-500 uppercase font-medium">Total Garçons</p>
+        <p class="text-3xl font-bold text-sky-600 mt-1" id="stat-garcons">—</p>
       </div>
-      <div class="bg-white rounded-xl shadow-md p-4 border-l-4 border-blue-500 animate-slide-up" style="animation-delay:0.1s">
-        <p class="text-xs text-gray-500 uppercase font-medium">Écoles</p>
+      <div class="bg-white rounded-xl shadow-md p-4 border-l-4 border-pink-500 animate-slide-up" style="animation-delay:0.1s">
+        <p class="text-xs text-gray-500 uppercase font-medium">Total Filles</p>
+        <p class="text-3xl font-bold text-pink-600 mt-1" id="stat-filles">—</p>
+      </div>
+      <div class="bg-white rounded-xl shadow-md p-4 border-l-4 border-blue-500 animate-slide-up" style="animation-delay:0.15s">
+        <p class="text-xs text-gray-500 uppercase font-medium">Écoles actives</p>
         <p class="text-3xl font-bold text-blue-600 mt-1" id="stat-ecoles">—</p>
+        <p class="text-[10px] text-gray-400 mt-0.5" id="stat-ecoles-detail">sur X enregistrées</p>
       </div>
       <div class="bg-white rounded-xl shadow-md p-4 border-l-4 border-purple-500 animate-slide-up" style="animation-delay:0.2s">
-        <p class="text-xs text-gray-500 uppercase font-medium">Secteurs</p>
+        <p class="text-xs text-gray-500 uppercase font-medium">Secteurs actifs</p>
         <p class="text-3xl font-bold text-purple-600 mt-1" id="stat-secteurs">—</p>
-      </div>
-      <div class="bg-white rounded-xl shadow-md p-4 border-l-4 border-orange-500 animate-slide-up" style="animation-delay:0.3s">
-        <p class="text-xs text-gray-500 uppercase font-medium">Lots envoyés</p>
-        <p class="text-3xl font-bold text-orange-600 mt-1" id="stat-lots">—</p>
+        <p class="text-[10px] text-gray-400 mt-0.5">sur 5 secteurs</p>
       </div>
     </div>
   </div>
@@ -106,14 +106,14 @@
         <div class="p-5 space-y-4">
           <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm text-amber-800">
             <p class="font-semibold mb-1">⚠️ Important</p>
-            <p>Lors d'une mise à jour, des données peuvent être perdues . <strong>Téléchargez une sauvegarde régulièrement</strong> et conservez le fichier sur votre ordinateur pour une restauration en cas de problème technique.</p>
+            <p>Le plan gratuit de Render efface les données à chaque redéploiement. <strong>Téléchargez une sauvegarde régulièrement</strong> et conservez le fichier sur votre ordinateur.</p>
           </div>
           <div class="flex gap-3">
             <button id="btn-backup-download" class="flex-1 px-4 py-3 bg-amber-500 text-white rounded-lg text-sm font-semibold hover:bg-amber-400 transition-colors cursor-pointer">
-              💾 Sauvegarder
+              💾 Télécharger la sauvegarde
             </button>
             <button id="btn-backup-restore" class="flex-1 px-4 py-3 bg-white border-2 border-amber-500 text-amber-600 rounded-lg text-sm font-semibold hover:bg-amber-50 transition-colors cursor-pointer">
-              📂 Restaurer
+              📂 Restaurer une sauvegarde
             </button>
           </div>
         </div>
@@ -573,10 +573,47 @@
     function updateStats() {
       var g = (allStats.global && allStats.global[0]) || {};
       document.getElementById('stat-total').textContent = g.total_eleves || 0;
-      document.getElementById('stat-fille').textContent = g.total_fille || 0;
-      document.getElementById('stat-ecoles').textContent = g.total_ecoles || 0;
-      document.getElementById('stat-secteurs').textContent = g.total_secteurs || 0;
-      document.getElementById('stat-lots').textContent = g.total_lots || 0;
+
+      // Count garçons/filles from all lots
+      var garcons = 0, filles = 0;
+      for (var i = 0; i < allLots.length; i++) {
+        var eleves = [];
+        try { eleves = JSON.parse(allLots[i].eleves || '[]'); } catch(e) {}
+        for (var j = 0; j < eleves.length; j++) {
+          if (eleves[j].sexe === 'M') garcons++;
+          else filles++;
+        }
+      }
+      document.getElementById('stat-garcons').textContent = garcons;
+      document.getElementById('stat-filles').textContent = filles;
+
+      // Secteurs actifs (qui ont envoyé au moins 1 lot) sur 5
+      var secteursActifs = {};
+      for (var s = 0; s < allLots.length; s++) {
+        secteursActifs[allLots[s].secteur_pedagogique] = true;
+      }
+      var nbSecteursActifs = Object.keys(secteursActifs).length;
+      document.getElementById('stat-secteurs').textContent = nbSecteursActifs + '/5';
+
+      // Écoles actives (qui ont envoyé au moins 1 lot) vs total enregistré
+      var ecolesActives = {};
+      for (var e = 0; e < allLots.length; e++) {
+        ecolesActives[allLots[e].nom_ecole] = true;
+      }
+      var nbEcolesActives = Object.keys(ecolesActives).length;
+
+      // Récupérer le total d'écoles enregistrées
+      fetch('/api/secteurs/ecoles/count')
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+          var totalEcoles = data.total || 0;
+          document.getElementById('stat-ecoles').textContent = nbEcolesActives + '/' + totalEcoles;
+          document.getElementById('stat-ecoles-detail').textContent = totalEcoles + ' école(s) enregistrée(s)';
+        })
+        .catch(function() {
+          document.getElementById('stat-ecoles').textContent = nbEcolesActives;
+          document.getElementById('stat-ecoles-detail').textContent = 'écoles ayant envoyé';
+        });
 
       var secteurTable = document.getElementById('stats-secteur-table');
       var secteurs = allStats.parSecteur || [];
@@ -1026,6 +1063,6 @@
 
     // Auto-refresh
     setInterval(refreshData, 5 * 60 * 1000);
-  </script>WebApp propulsée par Dj3k S3ph1r0th
+  </script>
 </body>
 </html>

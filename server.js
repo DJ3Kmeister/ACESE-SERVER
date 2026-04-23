@@ -349,6 +349,14 @@ app.post('/api/secteurs/:id/ecoles', function(req, res) {
   });
 });
 
+// GET total ecoles count
+app.get('/api/secteurs/ecoles/count', function(req, res) {
+  db.get("SELECT COUNT(*) as total FROM ecoles", [], function(err, row) {
+    if (err) return res.status(500).json({ error: 'Erreur' });
+    res.json({ total: row ? row.total : 0 });
+  });
+});
+
 // DELETE ecole (admin only)
 app.delete('/api/secteurs/:secteurId/ecoles/:ecoleId', function(req, res) {
   var ecoleId = parseInt(req.params.ecoleId);
