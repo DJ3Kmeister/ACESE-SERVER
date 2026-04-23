@@ -573,6 +573,7 @@
     function updateStats() {
       var g = (allStats.global && allStats.global[0]) || {};
       document.getElementById('stat-total').textContent = g.total_eleves || 0;
+      document.getElementById('stat-fille').textContent = g.total_fille || 0;
       document.getElementById('stat-ecoles').textContent = g.total_ecoles || 0;
       document.getElementById('stat-secteurs').textContent = g.total_secteurs || 0;
       document.getElementById('stat-lots').textContent = g.total_lots || 0;
