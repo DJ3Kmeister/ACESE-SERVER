@@ -569,6 +569,15 @@
       }
     }
 
+    function getLotEleves(lot) {
+      if (!lot) return [];
+      if (Array.isArray(lot.eleves)) return lot.eleves;
+      if (typeof lot.eleves === 'string') {
+        try { return JSON.parse(lot.eleves || '[]'); } catch(e) { return []; }
+      }
+      return [];
+    }
+
     // ============ UPDATE STATS ============
     function updateStats() {
       var g = (allStats.global && allStats.global[0]) || {};
@@ -577,8 +586,7 @@
       // Count garçons/filles from all lots
       var garcons = 0, filles = 0;
       for (var i = 0; i < allLots.length; i++) {
-        var eleves = [];
-        try { eleves = JSON.parse(allLots[i].eleves || '[]'); } catch(e) {}
+        var eleves = getLotEleves(allLots[i]);
         for (var j = 0; j < eleves.length; j++) {
           if (eleves[j].sexe === 'M') garcons++;
           else filles++;
@@ -726,8 +734,7 @@
       var html = '';
       for (var i = 0; i < lots.length; i++) {
         var lot = lots[i];
-        var eleves = [];
-        try { eleves = JSON.parse(lot.eleves || '[]'); } catch(e) { eleves = []; }
+        var eleves = getLotEleves(lot);
         var date = new Date(lot.created_at).toLocaleDateString('fr-FR');
         var garcons = 0, filles = 0;
         for (var k = 0; k < eleves.length; k++) {
@@ -761,8 +768,7 @@
       }
       if (!lot) return;
 
-      var eleves = [];
-      try { eleves = JSON.parse(lot.eleves || '[]'); } catch(e) { eleves = []; }
+      var eleves = getLotEleves(lot);
       var garcons = 0, filles = 0;
       for (var k = 0; k < eleves.length; k++) {
         if (eleves[k].sexe === 'M') garcons++;
@@ -869,8 +875,7 @@
       var rows = [];
       for (var i = 0; i < allLots.length; i++) {
         var lot = allLots[i];
-        var eleves = [];
-        try { eleves = JSON.parse(lot.eleves || '[]'); } catch(e) { eleves = []; }
+        var eleves = getLotEleves(lot);
         for (var j = 0; j < eleves.length; j++) {
           var eleve = eleves[j];
           rows.push({
