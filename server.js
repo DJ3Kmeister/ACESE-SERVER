@@ -223,7 +223,7 @@ function validatePayload(data) {
     errors.push('Maximum 500 eleves par envoi');
   } else {
     data.eleves.forEach(function(eleve, idx) {
-      var eleveRequired = ['nom', 'prenoms', 'sexe', 'date_naissance_probable', 'classe', 'nom_pere', 'numero_pere', 'nom_mere', 'numero_mere', 'nom_temoin', 'numero_temoin'];
+      var eleveRequired = ['nom', 'prenoms', 'sexe', 'nationalite', 'date_naissance_probable', 'classe', 'nom_pere', 'numero_pere', 'nom_mere', 'numero_mere', 'nom_temoin', 'numero_temoin'];
       eleveRequired.forEach(function(field) {
         if (!eleve[field] || String(eleve[field]).trim() === '') {
           errors.push('Eleve ' + (idx + 1) + ': champ manquant ' + field);
@@ -239,8 +239,16 @@ function validatePayload(data) {
             : 'Eleve ' + (idx + 1) + ': ' + phoneField + ' doit contenir 10 chiffres');
         }
       });
-      if (eleve.sexe && eleve.sexe !== 'M' && eleve.sexe !== 'F') {
-        errors.push('Eleve ' + (idx + 1) + ': sexe invalide');
+      if (eleve.sexe && eleve.sexe !== 'G' && eleve.sexe !== 'F' && eleve.sexe !== 'M') {
+        errors.push('Eleve ' + (idx + 1) + ': sexe invalide (G/F attendu)');
+      }
+      ['matricule', 'nationalite', 'cni_pere', 'cni_mere', 'cni_temoin'].forEach(function(optField) {
+        if (eleve[optField] && String(eleve[optField]).length > 100) {
+          errors.push('Eleve ' + (idx + 1) + ': ' + optField + ' trop long');
+        }
+      });
+      if (eleve.sexe === 'M') {
+        eleve.sexe = 'G';
       }
     });
   }

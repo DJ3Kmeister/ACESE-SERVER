@@ -588,7 +588,7 @@
       for (var i = 0; i < allLots.length; i++) {
         var eleves = getLotEleves(allLots[i]);
         for (var j = 0; j < eleves.length; j++) {
-          if (eleves[j].sexe === 'M') garcons++;
+          if (eleves[j].sexe === 'G' || eleves[j].sexe === 'M') garcons++;
           else filles++;
         }
       }
@@ -738,7 +738,7 @@
         var date = new Date(lot.created_at).toLocaleDateString('fr-FR');
         var garcons = 0, filles = 0;
         for (var k = 0; k < eleves.length; k++) {
-          if (eleves[k].sexe === 'M') garcons++;
+          if (eleves[k].sexe === 'G' || eleves[k].sexe === 'M') garcons++;
           else filles++;
         }
         html += '<tr class="hover:bg-gray-50 transition-colors">' +
@@ -771,7 +771,7 @@
       var eleves = getLotEleves(lot);
       var garcons = 0, filles = 0;
       for (var k = 0; k < eleves.length; k++) {
-        if (eleves[k].sexe === 'M') garcons++;
+        if (eleves[k].sexe === 'G' || eleves[k].sexe === 'M') garcons++;
         else filles++;
       }
 
@@ -794,25 +794,30 @@
           '📚 ' + esc(classe) + ' <span class="text-gray-400 font-normal">(' + list.length + ')</span></h4>' +
           '<div class="overflow-x-auto"><table class="w-full text-xs">' +
           '<thead><tr class="text-gray-500 border-b">' +
-          '<th class="pb-1 text-left pr-2">#</th><th class="pb-1 text-left pr-2">Nom</th>' +
+          '<th class="pb-1 text-left pr-2">#</th><th class="pb-1 text-left pr-2">Matricule</th><th class="pb-1 text-left pr-2">Nom</th>' +
           '<th class="pb-1 text-left pr-2">Prénoms</th><th class="pb-1 text-center pr-2">Sexe</th>' +
-          '<th class="pb-1 text-left pr-2">Naissance</th><th class="pb-1 text-left pr-2">Père</th>' +
-          '<th class="pb-1 text-left pr-2">N° Père</th><th class="pb-1 text-left pr-2">Mère</th>' +
-          '<th class="pb-1 text-left pr-2">N° Mère</th><th class="pb-1 text-left">N° Témoin</th></tr></thead><tbody>';
+          '<th class="pb-1 text-left pr-2">Nationalité</th><th class="pb-1 text-left pr-2">Naissance</th><th class="pb-1 text-left pr-2">Père</th>' +
+          '<th class="pb-1 text-left pr-2">N° Père</th><th class="pb-1 text-left pr-2">Pièce Père</th><th class="pb-1 text-left pr-2">Mère</th>' +
+          '<th class="pb-1 text-left pr-2">N° Mère</th><th class="pb-1 text-left pr-2">Pièce Mère</th><th class="pb-1 text-left pr-2">N° Témoin</th><th class="pb-1 text-left">Pièce Témoin</th></tr></thead><tbody>';
 
         for (var e2 = 0; e2 < list.length; e2++) {
           var el = list[e2];
           classesHtml += '<tr class="border-b border-gray-50">' +
             '<td class="py-1.5 text-gray-400">' + (e2 + 1) + '</td>' +
+            '<td class="py-1.5 text-gray-500">' + esc(el.matricule || '') + '</td>' +
             '<td class="py-1.5 font-medium">' + esc(el.nom) + '</td>' +
             '<td class="py-1.5">' + esc(el.prenoms) + '</td>' +
-            '<td class="py-1.5 text-center">' + (el.sexe === 'M' ? '👦' : '👧') + '</td>' +
+            '<td class="py-1.5 text-center">' + ((el.sexe === 'G' || el.sexe === 'M') ? 'Garçon' : 'Fille') + '</td>' +
+            '<td class="py-1.5 text-gray-500">' + esc(el.nationalite || '') + '</td>' +
             '<td class="py-1.5 text-gray-500">' + esc(el.date_naissance_probable) + '</td>' +
             '<td class="py-1.5">' + esc(el.nom_pere) + '</td>' +
             '<td class="py-1.5 text-gray-500">' + esc(el.numero_pere) + '</td>' +
+            '<td class="py-1.5 text-gray-500">' + esc(el.cni_pere || '') + '</td>' +
             '<td class="py-1.5">' + esc(el.nom_mere) + '</td>' +
             '<td class="py-1.5 text-gray-500">' + esc(el.numero_mere) + '</td>' +
-            '<td class="py-1.5 text-gray-500">' + esc(el.numero_temoin) + '</td></tr>';
+            '<td class="py-1.5 text-gray-500">' + esc(el.cni_mere || '') + '</td>' +
+            '<td class="py-1.5 text-gray-500">' + esc(el.numero_temoin) + '</td>' +
+            '<td class="py-1.5 text-gray-500">' + esc(el.cni_temoin || '') + '</td></tr>';
         }
         classesHtml += '</tbody></table></div></div>';
       }
@@ -891,15 +896,20 @@
             'Email': lot.email,
             'Nom Élève': eleve.nom,
             'Prénoms': eleve.prenoms,
-            'Sexe': eleve.sexe === 'M' ? 'Masculin' : 'Féminin',
+            'Matricule / Identifiant': eleve.matricule || '',
+            'Sexe': (eleve.sexe === 'G' || eleve.sexe === 'M') ? 'Garçon' : 'Fille',
+            'Nationalité': eleve.nationalite || '',
             'Date Naissance': eleve.date_naissance_probable,
             'Classe': eleve.classe,
             'Nom Père': eleve.nom_pere,
             'N° Père': eleve.numero_pere,
+            'CNI/Pièce Père': eleve.cni_pere || '',
             'Nom Mère': eleve.nom_mere,
             'N° Mère': eleve.numero_mere,
+            'CNI/Pièce Mère': eleve.cni_mere || '',
             'Nom Témoin': eleve.nom_temoin,
-            'N° Témoin': eleve.numero_temoin
+            'N° Témoin': eleve.numero_temoin,
+            'CNI/Pièce Témoin': eleve.cni_temoin || ''
           });
         }
       }
