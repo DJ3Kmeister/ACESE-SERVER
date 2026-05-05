@@ -54,6 +54,19 @@ function hashPassword(password, salt) {
   return crypto.pbkdf2Sync(String(password), salt, 100000, 64, 'sha256').toString('hex');
 }
 
+function makeSalt() {
+  return crypto.randomBytes(16).toString('hex');
+}
+
+// Compatible with the client-side offline lock hash.
+function hashClientPassword(password, salt) {
+  return crypto.createHash('sha256').update(String(salt) + ':' + String(password)).digest('hex');
+}
+
+function generatePassword() {
+  return 'GRABO-' + String(Math.floor(1000 + Math.random() * 9000));
+}
+
 // ===================== MIDDLEWARE =====================
 
 app.use(function(req, res, next) {
@@ -69,7 +82,7 @@ app.use(function(req, res, next) {
 var corsOptions = {
   origin: process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type']
+  allowedHeaders: ['Content-Type', 'Authorization']
 };
 
 var limiter = rateLimit({
@@ -175,6 +188,26 @@ async function initDatabase() {
     );
   `);
 
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS director_accounts (
+      id SERIAL PRIMARY KEY,
+      username TEXT NOT NULL UNIQUE,
+      password_hash TEXT NOT NULL,
+      password_salt TEXT NOT NULL,
+      nom_directeur TEXT NOT NULL,
+      prenoms_directeur TEXT NOT NULL,
+      contact1 TEXT NOT NULL,
+      contact2 TEXT,
+      email TEXT,
+      secteur_pedagogique TEXT NOT NULL,
+      nom_ecole TEXT NOT NULL,
+      is_active BOOLEAN DEFAULT TRUE,
+      last_login_at TIMESTAMP,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
   for (const s of DEFAULT_SECTEURS) {
     await pool.query('INSERT INTO secteurs (nom) VALUES ($1) ON CONFLICT (nom) DO NOTHING', [s]);
   }
@@ -259,6 +292,7 @@ function validatePayload(data) {
 
 var adminPassword = process.env.ADMIN_PASSWORD || 'S3ph1r0th2025!';
 app.use('/admin', basicAuth({ users: { admin: adminPassword }, challenge: true, realm: 'ACESE-Admin' }));
+app.use('/api/admin', basicAuth({ users: { admin: adminPassword }, challenge: true, realm: 'ACESE-Admin' }));
 
 // ===================== ROUTES =====================
 
@@ -440,6 +474,142 @@ app.post('/api/director-verify', async function(req, res) {
   }
 });
 
+// ===================== ADMIN DIRECTOR ACCOUNTS =====================
+
+function publicDirectorRow(row) {
+  return {
+    id: row.id,
+    username: row.username,
+    nom_directeur: row.nom_directeur,
+    prenoms_directeur: row.prenoms_directeur,
+    contact1: row.contact1,
+    contact2: row.contact2,
+    email: row.email,
+    secteur_pedagogique: row.secteur_pedagogique,
+    nom_ecole: row.nom_ecole,
+    is_active: row.is_active,
+    last_login_at: row.last_login_at,
+    created_at: row.created_at,
+    updated_at: row.updated_at
+  };
+}
+
+app.get('/api/admin/directors', async function(req, res) {
+  try {
+    const r = await pool.query('SELECT * FROM director_accounts ORDER BY nom_ecole, nom_directeur');
+    res.json(r.rows.map(publicDirectorRow));
+  } catch (err) {
+    console.error('Erreur liste directeurs:', err);
+    res.status(500).json({ error: 'Erreur base de donnees' });
+  }
+});
+
+app.post('/api/admin/directors', async function(req, res) {
+  const body = req.body || {};
+  const nom = String(body.nom_directeur || '').trim().toUpperCase();
+  const prenoms = String(body.prenoms_directeur || '').trim();
+  const contact1 = normalizePhone(body.contact1);
+  const contact2 = normalizePhone(body.contact2);
+  const email = String(body.email || '').trim().toLowerCase();
+  const secteur = String(body.secteur_pedagogique || '').trim().toUpperCase();
+  const ecole = String(body.nom_ecole || '').trim().toUpperCase();
+  const username = String(body.username || (ecole.replace(/[^A-Z0-9]/g, '') + '-' + nom.replace(/[^A-Z0-9]/g, ''))).toUpperCase().substring(0, 60);
+  const password = String(body.password || generatePassword()).trim();
+
+  if (!nom || !prenoms || !contact1 || !secteur || !ecole || !username) {
+    return res.status(400).json({ error: 'Nom, prenoms, telephone, secteur, ecole et identifiant requis' });
+  }
+  if (!isValidPhone(contact1)) return res.status(400).json({ error: 'Telephone invalide' });
+
+  const salt = makeSalt();
+  const hash = hashClientPassword(password, salt);
+
+  try {
+    const r = await pool.query(
+      'INSERT INTO director_accounts (username, password_hash, password_salt, nom_directeur, prenoms_directeur, contact1, contact2, email, secteur_pedagogique, nom_ecole) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *',
+      [username, hash, salt, nom, prenoms, contact1, contact2, email, secteur, ecole]
+    );
+    await logAction('CREATE_DIRECTOR_ACCOUNT', { username, ecole }, req.ip);
+    res.status(201).json({ success: true, director: publicDirectorRow(r.rows[0]), temporary_password: password });
+  } catch (err) {
+    if (err.code === '23505') return res.status(409).json({ error: 'Cet identifiant existe deja' });
+    console.error('Erreur create director:', err);
+    res.status(500).json({ error: 'Erreur creation compte' });
+  }
+});
+
+app.post('/api/admin/directors/:id/reset-password', async function(req, res) {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ error: 'ID invalide' });
+  const password = String((req.body && req.body.password) || generatePassword()).trim();
+  const salt = makeSalt();
+  const hash = hashClientPassword(password, salt);
+  try {
+    const r = await pool.query('UPDATE director_accounts SET password_hash=$1, password_salt=$2, updated_at=CURRENT_TIMESTAMP WHERE id=$3 RETURNING *', [hash, salt, id]);
+    if (r.rowCount === 0) return res.status(404).json({ error: 'Compte introuvable' });
+    await logAction('RESET_DIRECTOR_PASSWORD', { id }, req.ip);
+    res.json({ success: true, director: publicDirectorRow(r.rows[0]), temporary_password: password });
+  } catch (err) {
+    res.status(500).json({ error: 'Erreur reset mot de passe' });
+  }
+});
+
+app.post('/api/admin/directors/:id/toggle', async function(req, res) {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ error: 'ID invalide' });
+  try {
+    const r = await pool.query('UPDATE director_accounts SET is_active = NOT is_active, updated_at=CURRENT_TIMESTAMP WHERE id=$1 RETURNING *', [id]);
+    if (r.rowCount === 0) return res.status(404).json({ error: 'Compte introuvable' });
+    await logAction('TOGGLE_DIRECTOR_ACCOUNT', { id, is_active: r.rows[0].is_active }, req.ip);
+    res.json({ success: true, director: publicDirectorRow(r.rows[0]) });
+  } catch (err) {
+    res.status(500).json({ error: 'Erreur statut compte' });
+  }
+});
+
+// Public director login used by the client app.
+app.post('/api/director-login', async function(req, res) {
+  const username = String((req.body && req.body.username) || '').trim().toUpperCase();
+  const password = String((req.body && req.body.password) || '');
+  if (!username || !password) return res.status(400).json({ error: 'Identifiant et mot de passe requis' });
+
+  try {
+    const r = await pool.query('SELECT * FROM director_accounts WHERE username=$1', [username]);
+    const account = r.rows[0];
+    if (!account || !account.is_active) return res.status(401).json({ error: 'Identifiants invalides ou compte désactivé' });
+
+    const computed = hashClientPassword(password, account.password_salt);
+    if (computed !== account.password_hash) return res.status(401).json({ error: 'Identifiants invalides' });
+
+    await pool.query('UPDATE director_accounts SET last_login_at=CURRENT_TIMESTAMP WHERE id=$1', [account.id]);
+    await logAction('DIRECTOR_LOGIN', { username, ecole: account.nom_ecole }, req.ip);
+
+    res.json({
+      success: true,
+      config: {
+        drenaet: 'DRENAET San-Pédro',
+        iepp: 'IEPP GRABO',
+        secteur_pedagogique: account.secteur_pedagogique,
+        nom_ecole: account.nom_ecole,
+        nom_directeur: account.nom_directeur,
+        prenoms_directeur: account.prenoms_directeur,
+        contact1: account.contact1,
+        contact2: account.contact2 || '',
+        email: account.email || '',
+        serverUrl: 'https://acese-server.onrender.com',
+        director_username: account.username,
+        director_account_id: account.id,
+        director_password_hash: account.password_hash,
+        director_password_salt: account.password_salt,
+        is_admin_provisioned: true
+      }
+    });
+  } catch (err) {
+    console.error('Erreur login directeur:', err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
 // Duplicate check
 app.post('/api/check-duplicate', async function(req, res) {
   const eleve = req.body;
@@ -557,15 +727,16 @@ app.get('/api/logs', async function(req, res) {
 // Backup / restore (JSON)
 app.get('/api/backup/download', async function(req, res) {
   try {
-    const [lots, logs, config, secteurs, ecoles, directors] = await Promise.all([
+    const [lots, logs, config, secteurs, ecoles, directors, accounts] = await Promise.all([
       pool.query('SELECT * FROM lots ORDER BY id ASC'),
       pool.query('SELECT * FROM logs ORDER BY id ASC'),
       pool.query('SELECT * FROM app_config'),
       pool.query('SELECT * FROM secteurs'),
       pool.query('SELECT * FROM ecoles'),
       pool.query('SELECT * FROM director_profiles'),
+      pool.query('SELECT * FROM director_accounts'),
     ]);
-    const backup = { version: '4.0-postgres', exported_at: new Date().toISOString(), lots: lots.rows, logs: logs.rows, config: config.rows, secteurs: secteurs.rows, ecoles: ecoles.rows, director_profiles: directors.rows };
+    const backup = { version: '4.0-postgres', exported_at: new Date().toISOString(), lots: lots.rows, logs: logs.rows, config: config.rows, secteurs: secteurs.rows, ecoles: ecoles.rows, director_profiles: directors.rows, director_accounts: accounts.rows };
     const filename = 'ACESE_backup_' + new Date().toISOString().split('T')[0] + '.json';
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Content-Disposition', 'attachment; filename="' + filename + '"');
@@ -586,6 +757,7 @@ app.post('/api/backup/restore', async function(req, res) {
     await client.query('DELETE FROM logs');
     await client.query('DELETE FROM app_config');
     await client.query('DELETE FROM director_profiles');
+    await client.query('DELETE FROM director_accounts');
     await client.query('DELETE FROM secteurs');
 
     for (const s of (backup.secteurs || [])) {
@@ -599,6 +771,9 @@ app.post('/api/backup/restore', async function(req, res) {
     }
     for (const d of (backup.director_profiles || [])) {
       await client.query('INSERT INTO director_profiles (id, contact1, nom_directeur, prenoms_directeur, nom_ecole, secteur_pedagogique, contact2, email, password_hash, password_salt, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) ON CONFLICT (contact1) DO UPDATE SET nom_directeur=EXCLUDED.nom_directeur, prenoms_directeur=EXCLUDED.prenoms_directeur, nom_ecole=EXCLUDED.nom_ecole, secteur_pedagogique=EXCLUDED.secteur_pedagogique, contact2=EXCLUDED.contact2, email=EXCLUDED.email, password_hash=EXCLUDED.password_hash, password_salt=EXCLUDED.password_salt, updated_at=EXCLUDED.updated_at', [d.id, d.contact1, d.nom_directeur, d.prenoms_directeur, d.nom_ecole, d.secteur_pedagogique, d.contact2, d.email, d.password_hash, d.password_salt, d.created_at, d.updated_at]);
+    }
+    for (const a of (backup.director_accounts || [])) {
+      await client.query('INSERT INTO director_accounts (id, username, password_hash, password_salt, nom_directeur, prenoms_directeur, contact1, contact2, email, secteur_pedagogique, nom_ecole, is_active, last_login_at, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) ON CONFLICT (username) DO UPDATE SET password_hash=EXCLUDED.password_hash, password_salt=EXCLUDED.password_salt, nom_directeur=EXCLUDED.nom_directeur, prenoms_directeur=EXCLUDED.prenoms_directeur, contact1=EXCLUDED.contact1, contact2=EXCLUDED.contact2, email=EXCLUDED.email, secteur_pedagogique=EXCLUDED.secteur_pedagogique, nom_ecole=EXCLUDED.nom_ecole, is_active=EXCLUDED.is_active, updated_at=EXCLUDED.updated_at', [a.id, a.username, a.password_hash, a.password_salt, a.nom_directeur, a.prenoms_directeur, a.contact1, a.contact2, a.email, a.secteur_pedagogique, a.nom_ecole, a.is_active, a.last_login_at, a.created_at, a.updated_at]);
     }
     for (const lot of (backup.lots || [])) {
       await client.query('INSERT INTO lots (id, drenaet, iepp, secteur_pedagogique, nom_ecole, nom_directeur, prenoms_directeur, contact1, contact2, email, eleves, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)', [lot.id, lot.drenaet, lot.iepp, lot.secteur_pedagogique, lot.nom_ecole, lot.nom_directeur, lot.prenoms_directeur, lot.contact1, lot.contact2 || '', lot.email || '', JSON.stringify(lot.eleves || []), lot.created_at, lot.updated_at]);
